@@ -9,3 +9,8 @@
 - insert:
     - id: beyond-workscope-eng
       name: '@linxin666/dsh-beyond-workscope-eng'
+
+# dsh-nas 系统包（桌面/窗口/文件管理/回收站/应用注册表）
+- insert:
+    - id: nas
+      name: '@linxin666/dsh-nas'

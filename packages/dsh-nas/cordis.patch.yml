@@ -1,0 +1,4 @@
+# dsh-nas system package patch: inserts the desktop-system plugin row.
+- insert:
+    - id: nas
+      name: '@linxin666/dsh-nas'

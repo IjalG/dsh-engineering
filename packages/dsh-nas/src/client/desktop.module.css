@@ -1,0 +1,767 @@
+/* dsh-nas desktop styles — both modes (panel rail + fullscreen grid), the
+   window system, file manager, trash, settings, preview, search. */
+
+/* ---- desktop containers ---- */
+
+.desktop {
+  position: fixed;
+  z-index: 9000;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--dsh-fg, #1f2328);
+}
+
+.desktopFull {
+  inset: 0;
+  background: linear-gradient(160deg, #eef2f7 0%, #dde5ee 100%);
+  overflow: hidden;
+}
+
+.desktopPanel {
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: min(768px, 100vw);
+  background: rgba(248, 250, 252, 0.97);
+  border-left: 1px solid rgba(31, 35, 40, 0.12);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -2px 0 12px rgba(31, 35, 40, 0.08);
+}
+
+/* collapse handle at the panel's left edge (dock side) */
+.panelHandle {
+  position: absolute;
+  left: -26px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 64px;
+  border: 1px solid rgba(31, 35, 40, 0.14);
+  border-right: none;
+  background: rgba(248, 250, 252, 0.95);
+  border-radius: 8px 0 0 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panelHandle:hover {
+  background: #fff;
+}
+
+.panelHandleGlyph {
+  width: 6px;
+  height: 22px;
+  border-radius: 3px;
+  background: rgba(31, 35, 40, 0.35);
+}
+
+/* right-edge dock handle shown while the desktop is closed */
+.dockHandle {
+  position: fixed;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 8900;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 46px;
+  padding: 10px 4px;
+  border: 1px solid rgba(31, 35, 40, 0.14);
+  border-right: none;
+  background: rgba(248, 250, 252, 0.95);
+  border-radius: 10px 0 0 10px;
+  cursor: grab;
+  color: inherit;
+  box-shadow: -2px 0 8px rgba(31, 35, 40, 0.08);
+  touch-action: none;
+  user-select: none;
+}
+
+.dockHandleDragging {
+  cursor: grabbing;
+}
+
+.dockHandle:hover {
+  background: #fff;
+}
+
+.dockHandleGlyph {
+  display: inline-flex;
+  color: #3b82f6;
+}
+
+.dockHandleLabel {
+  font-size: 11px;
+  writing-mode: vertical-rl;
+  letter-spacing: 0.08em;
+  color: rgba(31, 35, 40, 0.75);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(31, 35, 40, 0.1);
+}
+
+.panelTitle {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.panelButton {
+  border: 1px solid rgba(31, 35, 40, 0.18);
+  background: #fff;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.panelButton:hover {
+  background: #f0f4f8;
+}
+
+.panelRail {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(31, 35, 40, 0.1);
+}
+
+.panelWindows {
+  flex: 1;
+  position: relative;
+  overflow: visible;
+}
+
+/* ---- desktop icons ---- */
+
+.desktopGrid {
+  position: absolute;
+  inset: 0;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-content: flex-start;
+}
+
+.desktopIcon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 88px;
+  padding: 10px 4px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.desktopIcon:hover {
+  background: rgba(31, 35, 40, 0.06);
+}
+
+.desktopIconGlyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(31, 35, 40, 0.14);
+  color: #3b82f6;
+  box-shadow: 0 2px 6px rgba(31, 35, 40, 0.08);
+}
+
+.desktopIconLabel {
+  font-size: 12px;
+  max-width: 84px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- taskbar ---- */
+
+.taskbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(31, 35, 40, 0.12);
+}
+
+.taskbarButton {
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+  color: inherit;
+  display: inline-flex;
+}
+
+.taskbarButton:hover {
+  background: rgba(31, 35, 40, 0.08);
+}
+
+.taskbarGlyph {
+  display: inline-flex;
+}
+
+.taskbarWindows {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.taskbarItem {
+  border: none;
+  background: rgba(31, 35, 40, 0.06);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  color: inherit;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskbarItemMin {
+  opacity: 0.55;
+}
+
+.taskbarClock {
+  font-size: 12px;
+  color: rgba(31, 35, 40, 0.65);
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- window system ---- */
+
+.windowLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.window {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid rgba(31, 35, 40, 0.18);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(31, 35, 40, 0.18);
+  pointer-events: auto;
+  min-width: 320px;
+  min-height: 200px;
+  overflow: hidden;
+}
+
+.windowFocused {
+  border-color: rgba(59, 130, 246, 0.55);
+}
+
+.windowDragging {
+  user-select: none;
+}
+
+.windowMaximized {
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  border-radius: 0;
+}
+
+.windowTitlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  height: 34px;
+  background: #f4f6f9;
+  border-bottom: 1px solid rgba(31, 35, 40, 0.1);
+  cursor: default;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.windowTitle {
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.windowControls {
+  display: flex;
+  gap: 2px;
+}
+
+.windowButton {
+  width: 26px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.windowButton:hover {
+  background: rgba(31, 35, 40, 0.08);
+}
+
+.windowClose:hover {
+  background: #e5484d;
+  color: #fff;
+}
+
+.winMin {
+  width: 10px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 1px;
+}
+
+.winMax {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+}
+
+.winClose {
+  position: relative;
+  width: 10px;
+  height: 10px;
+}
+
+.winClose::before,
+.winClose::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 10px;
+  height: 1.5px;
+  background: currentColor;
+  border-radius: 1px;
+}
+
+.winClose::before {
+  transform: rotate(45deg);
+}
+
+.winClose::after {
+  transform: rotate(-45deg);
+}
+
+.windowBody {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: auto;
+}
+
+.windowResize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+}
+
+.windowMissing {
+  padding: 24px;
+  color: rgba(31, 35, 40, 0.6);
+}
+
+/* ---- file manager ---- */
+
+.fm {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.fmToolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(31, 35, 40, 0.08);
+  flex-shrink: 0;
+}
+
+.fmButton {
+  border: 1px solid rgba(31, 35, 40, 0.16);
+  background: #fff;
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: 12px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.fmButton:hover:not(:disabled) {
+  background: #f0f4f8;
+}
+
+.fmButton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.fmDanger {
+  color: #c53030;
+  border-color: rgba(197, 48, 48, 0.35);
+}
+
+.fmCwd {
+  font-size: 12px;
+  color: rgba(31, 35, 40, 0.7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+.fmSpacer {
+  flex: 1;
+}
+
+.fmSearch {
+  border: 1px solid rgba(31, 35, 40, 0.16);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  width: 140px;
+  background: #fff;
+  color: inherit;
+}
+
+.fmActions {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(31, 35, 40, 0.08);
+  flex-shrink: 0;
+}
+
+.fmError {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #c53030;
+  background: rgba(197, 48, 48, 0.06);
+  border-bottom: 1px solid rgba(197, 48, 48, 0.15);
+}
+
+.fmList {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 6px;
+}
+
+.fmRow {
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+}
+
+.fmRow:hover {
+  background: rgba(31, 35, 40, 0.05);
+}
+
+.fmRowMain {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  padding: 5px 8px;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+  min-width: 0;
+}
+
+.fmIcon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.fmIconDir {
+  background: #fbbf24;
+  border-radius: 3px;
+  position: relative;
+}
+
+.fmIconDir::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.fmIconFile {
+  background: #e2e8f0;
+  border-radius: 2px;
+  position: relative;
+}
+
+.fmIconFile::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 12px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid #fff;
+  border-bottom: 4px solid transparent;
+}
+
+.fmName {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+.fmMeta {
+  font-size: 11.5px;
+  color: rgba(31, 35, 40, 0.55);
+  flex-shrink: 0;
+  min-width: 64px;
+  text-align: right;
+}
+
+.fmRowActions {
+  display: none;
+  gap: 2px;
+  padding-right: 4px;
+}
+
+.fmRow:hover .fmRowActions {
+  display: flex;
+}
+
+.fmMini {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  color: rgba(31, 35, 40, 0.7);
+}
+
+.fmMini:hover {
+  background: rgba(31, 35, 40, 0.1);
+}
+
+.fmMiniDanger:hover {
+  color: #c53030;
+}
+
+.fmEmpty {
+  padding: 32px 12px;
+  text-align: center;
+  color: rgba(31, 35, 40, 0.45);
+  font-size: 12.5px;
+}
+
+/* ---- preview ---- */
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.previewBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(31, 35, 40, 0.08);
+  flex-shrink: 0;
+}
+
+.previewPath {
+  font-size: 12px;
+  color: rgba(31, 35, 40, 0.6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.previewEmpty {
+  padding: 32px;
+  text-align: center;
+  color: rgba(31, 35, 40, 0.45);
+}
+
+.previewPre {
+  flex: 1;
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 12.5px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.previewTextarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 12px 14px;
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: inherit;
+  background: #fff;
+}
+
+.previewTruncated {
+  display: block;
+  color: rgba(31, 35, 40, 0.5);
+  font-style: italic;
+}
+
+/* ---- settings ---- */
+
+.settings {
+  padding: 14px 16px;
+  overflow: auto;
+  height: 100%;
+}
+
+.settingsSection {
+  margin-bottom: 18px;
+}
+
+.settingsHeading {
+  font-size: 12.5px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: rgba(31, 35, 40, 0.85);
+}
+
+.settingsRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settingsOption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(31, 35, 40, 0.16);
+  border-radius: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: 12.5px;
+}
+
+.settingsOptionActive {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.07);
+}
+
+.settingsMuted {
+  color: rgba(31, 35, 40, 0.55);
+  font-size: 12.5px;
+}
+
+.settingsApps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.settingsApp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+}
+
+.settingsAppIcon {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+}
+
+.settingsAppName {
+  font-size: 12.5px;
+}
+
+.settingsAppPkg {
+  font-size: 11.5px;
+  color: rgba(31, 35, 40, 0.5);
+  margin-left: auto;
+}
+
+/* small screens: keep the panel usable at 390px */
+@media (max-width: 480px) {
+  .desktopPanel {
+    width: 100vw;
+  }
+
+  .panelHandle {
+    display: none;
+  }
+
+  .desktopGrid {
+    padding: 12px;
+    gap: 4px;
+  }
+
+  .desktopIcon {
+    width: 76px;
+  }
+}

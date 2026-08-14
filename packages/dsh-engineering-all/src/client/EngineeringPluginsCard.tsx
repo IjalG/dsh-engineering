@@ -47,6 +47,8 @@ interface AuditEntry {
 const WEB_UI_GROUP_ID = 'web-ui-plugins'
 /** Beyond-workscope API prefix (read-only fetches). */
 const BEYOND_API = '/api/dsh-beyond-workscope'
+/** dsh-nas API prefix. */
+const NAS_API = '/api/dsh-nas'
 
 /** One member card's runtime state. */
 interface BeyondState {
@@ -54,6 +56,13 @@ interface BeyondState {
   running: boolean
   workspaces: WorkspaceView[]
   audit: AuditEntry[]
+}
+
+/** dsh-nas member state: API reachability + master switch. */
+interface NasState {
+  running: boolean
+  enabled: boolean
+  busy: boolean
 }
 
 /** The engineering group card. */
@@ -65,6 +74,7 @@ export function EngineeringPluginsCard(props: {
   const [expanded, setExpanded] = useState(false)
   const [webUIFamilyPresent, setWebUIFamilyPresent] = useState(false)
   const [beyond, setBeyond] = useState<BeyondState>({ running: false, workspaces: [], audit: [] })
+  const [nas, setNas] = useState<NasState>({ running: false, enabled: true, busy: false })
 
   // Auto-detection: the dsh-web-ui group card existing means the dsh-web-ui
   // family owns the family-member registrations — hide ours for the members
@@ -105,6 +115,41 @@ export function EngineeringPluginsCard(props: {
     const timer = setInterval(() => { void refresh() }, POLL_MS)
     return () => clearInterval(timer)
   }, [expanded, webUIFamilyPresent, refresh])
+
+  // dsh-nas member state: API reachability + master switch (polled).
+  const refreshNas = useCallback(async (): Promise<void> => {
+    try {
+      const [apps, settings] = await Promise.all([
+        fetch(`${NAS_API}/apps.list`).then(r => (r.ok ? r.json() : Promise.reject())),
+        fetch(`${NAS_API}/settings.get`).then(r => (r.ok ? r.json() : Promise.reject())),
+      ])
+      setNas({ running: true, enabled: settings.config?.enabled !== false, busy: false })
+    } catch {
+      setNas(prev => ({ running: false, enabled: prev.enabled, busy: false }))
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!expanded) return
+    void refreshNas()
+    const timer = setInterval(() => { void refreshNas() }, POLL_MS)
+    return () => clearInterval(timer)
+  }, [expanded, refreshNas])
+
+  // Toggle the dsh-nas master switch through its settings API.
+  const toggleNas = async (): Promise<void> => {
+    setNas(prev => ({ ...prev, busy: true }))
+    try {
+      await fetch(`${NAS_API}/settings.set`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ patch: { enabled: !nas.enabled } }),
+      })
+    } catch {
+      // state refresh below reports reality
+    }
+    await refreshNas()
+  }
 
   // Hidden when the dsh-web-ui family manages beyond-workscope.
   const beyondHidden = webUIFamilyPresent
@@ -147,6 +192,28 @@ export function EngineeringPluginsCard(props: {
             </div>
           )}
           {beyondHidden && <div className={css.empty}>{t('empty')}</div>}
+          <div className={css.member}>
+            <div className={css.memberHeader}>
+              <span className={css.memberName}>{t('member.nas.name')}</span>
+              <span className={css.status} data-running={nas.running && nas.enabled}>
+                {!nas.running
+                  ? t('member.status.missing')
+                  : nas.enabled ? t('member.nas.status.running') : t('member.nas.status.disabled')}
+              </span>
+            </div>
+            <div className={css.memberDesc}>{t('member.nas.description')}</div>
+            <div className={css.meta}>
+              <label className={css.switchRow}>
+                <input
+                  type="checkbox"
+                  checked={nas.enabled}
+                  disabled={!nas.running || nas.busy}
+                  onChange={() => void toggleNas()}
+                />
+                <span>{nas.busy ? t('member.toggle.updating') : (nas.enabled ? t('member.nas.toggle.disable') : t('member.nas.toggle.enable'))}</span>
+              </label>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
 {
-  "name": "@linxin666/dsh-engineering-all",
-  "description": "dsh-engineering 聚合包：工程能力插件全家桶 + 统一管理面板（设置 > 插件 > 插件配置）。首个成员：dsh-beyond-workscope（外部成员，注册与配置仍走 dsh-web-ui 渠道，本包只做概览与入口，避免重复注册冲突）。",
+  "name": "@linxin666/dsh-nas",
+  "description": "dsh-nas 系统包：仿 OS 办公桌面（侧边栏内嵌/全屏两态）——窗口系统、文件管理器、回收站、设置、应用注册表；根目录为会话工作区。软件（dsh-office/dsh-mail 等）以独立插件注册为桌面应用。",
   "version": "0.1.1",
   "private": true,
   "type": "module",
@@ -23,25 +23,26 @@
     "build": "tsdown",
     "prepare": "tsdown",
     "watch": "tsdown --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
-  "dependencies": {
-    "@linxin666/dsh-beyond-workscope-eng": "link:../dsh-beyond-workscope-eng",
-    "@linxin666/dsh-nas": "link:../dsh-nas"
-  },
+  "dependencies": {},
   "peerDependencies": {
-    "@deepseek-ai/dsh-client-locale": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-host-webserver": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-session": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-settings": "^0.1.0-rc.6"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-client-locale": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-ui-settings": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-host-webserver": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-session": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-settings": "^0.1.0-rc.6",
+    "@types/node": "^22.10.0",
     "@types/react": "~18.3.1",
     "@types/react-dom": "^18.3.5",
     "lightningcss": "1.32.0",
@@ -49,7 +50,9 @@
     "react-dom": "^18.3.1",
     "tsdown": "0.22.2",
     "typescript": "~5.7.2",
-    "@linxin666/dsh-client-ui-web-ui-settings": "link:../../../dsh-web-ui/packages/dsh-web-ui-settings"
+    "vitest": "^3.0.0",
+    "@deepseek-ai/dsh-system-prompt": "^0.1.0-rc.6",
+    "schemastery": "^3.18.0"
   },
   "license": "BSD-3-Clause"
 }

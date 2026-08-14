@@ -113,3 +113,51 @@
   font-size: 12.5px;
   color: var(--dsw-alias-label-tertiary, #86909c);
 }
+
+/* master-switch row for member cards */
+.switchRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.switchRow input[type='checkbox'] {
+  width: 34px;
+  height: 18px;
+  appearance: none;
+  border-radius: 9px;
+  background: rgba(31, 35, 40, 0.22);
+  position: relative;
+  cursor: pointer;
+  transition: background 120ms ease;
+  margin: 0;
+}
+
+.switchRow input[type='checkbox']::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(31, 35, 40, 0.3);
+  transition: transform 120ms ease;
+}
+
+.switchRow input[type='checkbox']:checked {
+  background: #3b82f6;
+}
+
+.switchRow input[type='checkbox']:checked::after {
+  transform: translateX(16px);
+}
+
+.switchRow input[type='checkbox']:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

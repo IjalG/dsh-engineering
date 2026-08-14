@@ -18,6 +18,13 @@ export const zh = {
   'member.audit': '最近审计',
   'member.manage.hint': '管理入口：会话「会话信息」选项卡',
   'member.noData': '暂无数据',
+  'member.nas.name': '工作台（dsh-nas）',
+  'member.nas.description': '仿 OS 桌面：窗口系统、文件管理器、回收站、应用注册表。关闭后不再注入系统提示词与文件接口（省 token）。',
+  'member.nas.status.running': '运行中',
+  'member.nas.status.disabled': '已关闭',
+  'member.nas.toggle.enable': '启用',
+  'member.nas.toggle.disable': '关闭',
+  'member.toggle.updating': '切换中…',
 } satisfies Record<string, string>
 
 /** Key union for this namespace. */
@@ -39,4 +46,11 @@ export const en = {
   'member.audit': 'recent audit',
   'member.manage.hint': 'Manage in the session info tab of a conversation',
   'member.noData': 'no data',
+  'member.nas.name': 'Workspace (dsh-nas)',
+  'member.nas.description': 'OS-like desktop: window system, file manager, trash, app registry. Disabling stops the prompt section and file API (saves tokens).',
+  'member.nas.status.running': 'running',
+  'member.nas.status.disabled': 'disabled',
+  'member.nas.toggle.enable': 'Enable',
+  'member.nas.toggle.disable': 'Disable',
+  'member.toggle.updating': 'Updating…',
 } satisfies Record<EngineeringPluginsKey, string>
