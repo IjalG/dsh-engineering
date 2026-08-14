@@ -15,7 +15,7 @@ export interface NasWindowLike {
 }
 import type { OfficeKey } from './locales.ts'
 import { WordApp } from './WordApp.tsx'
-import { ExcelApp } from './ExcelApp.tsx'
+import { UniverSheetApp } from './UniverSheetApp.tsx'
 import { PdfApp } from './PdfApp.tsx'
 import { PptApp } from './PptApp.tsx'
 import { OfficeApi, setOfficeSessionId } from './api.ts'
@@ -198,7 +198,7 @@ export function OfficeWindow({ window, t, sessionId }: OfficeWindowProps): React
 
   const ext = extOf(currentPath)
   if (ext === 'docx') return <WordApp t={t} path={currentPath} />
-  if (ext === 'xlsx') return <ExcelApp t={t} path={currentPath} />
+  if (ext === 'xlsx') return <UniverSheetApp t={t} path={currentPath} />
   if (ext === 'pptx') return <PptApp t={t} path={currentPath} />
   if (ext === 'pdf') return <PdfApp t={t} path={currentPath} />
   return (

@@ -1098,3 +1098,15 @@
     color: rgba(229, 233, 240, 0.8);
   }
 }
+
+.univerHost {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.univerHost > div {
+  width: 100%;
+  height: 100%;
+}

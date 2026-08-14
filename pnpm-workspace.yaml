@@ -4,6 +4,7 @@ allowBuilds:
   better-sqlite3: true
   canvas: set this to true or false
   esbuild: true
+  protobufjs: true
 minimumReleaseAgeExclude:
   - '@deepseek-ai/dsh-agent-default-model@0.1.0-rc.6'
   - '@deepseek-ai/dsh-agent-presets@0.1.0-rc.6'

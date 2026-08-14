@@ -381,17 +381,22 @@ function cellToText(value: unknown): string {
   if (typeof value === 'object' && 'text' in (value as object) && 'richText' in (value as object) && (value as { richText?: unknown }).richText === undefined) {
     return String((value as { text: unknown }).text)
   }
+  // Formula cell: round-trip the formula text (='SUM(...)') so editors keep it.
+  if (typeof value === 'object' && 'formula' in (value as object)) {
+    const formula = String((value as { formula: unknown }).formula)
+    return formula.startsWith('=') ? formula : `=${formula}`
+  }
   if (typeof value === 'object' && 'result' in (value as object)) return String((value as { result: unknown }).result)
   return String(value)
 }
 
-/** JSON grids -> xlsx (creates/overwrites; keeps formulas as text). */
+/** JSON grids -> xlsx (creates/overwrites; '=...' cells become real formulas). */
 export async function gridsToXlsx(grids: SheetGrid[], outPath: string, merges: SheetMerge[] = [], freezes: SheetFreeze[] = []): Promise<void> {
   const workbook = new ExcelJS.Workbook()
   for (const grid of grids.slice(0, 3)) {
     const sheet = workbook.addWorksheet(grid.name.slice(0, 31) || 'Sheet1')
     for (const row of grid.rows) {
-      sheet.addRow(row.map((cell) => cell))
+      sheet.addRow(row.map((cell) => (typeof cell === 'string' && cell.startsWith('=') ? { formula: cell.slice(1) } : cell)))
     }
   }
   for (const merge of merges) {

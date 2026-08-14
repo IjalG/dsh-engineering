@@ -19,7 +19,7 @@ dsh-nas 是 DSH Web GUI 内的一套「网页仿操作系统」办公工作台�
 | 包 | 角色 | 内容 |
 |---|---|---|
 | `dsh-nas` | 系统 | 桌面环境（内嵌/全屏两态）、窗口系统、任务栏、桌面图标、文件管理器、回收站、设置应用、应用注册表（host service + client slot）、全文检索、计划任务与通知 |
-| `dsh-office` | 软件 | 文档四件套应用：Word（TipTap 富文本）、Excel（自研网格）、PPT（画布编辑器）、PDF（阅读/合并/拆分/提取）；OCR 扫描识别（视觉模型独立配置） |
+| `dsh-office` | 软件 | 文档四件套应用：Word（TipTap 富文本）、Excel（Univer 在线表格引擎）、PPT（画布编辑器）、PDF（阅读/合并/拆分/提取）；OCR 扫描识别（视觉模型独立配置） |
 | `dsh-mail` | 软件 | 邮箱应用：IMAP 收件/搜索/附件保存 + SMTP 草稿/发送（审批 + 幂等账本）；先 mock 后接真 |
 | `dsh-engineering-all` | 聚合 | 全家桶聚合包 + 管理面板（已有） |
 
@@ -32,11 +32,11 @@ host 侧（dsh-nas 提供 `nas.apps` service）：
 - 软件包 apply 时注册；卸载/停用自动移除
 
 client 侧（dsh-nas 声明 slots，软件包注入）：
-- `nas.app.meta`（list，root）：应用元数据（名称/图标/描述）→ 桌面图标与任务栏渲染
-- `nas.app.window`（keyed，root）：key = windowKind → 窗口内容渲染器
+- `nas.app.meta`（list，root）：应用元数据（名称/图标/描述）-> 桌面图标与任务栏渲染
+- `nas.app.window`（keyed，root）：key = windowKind -> 窗口内容渲染器
 - `nas.app.command`（list，root，可选）：应用级动作（如 office 的「新建文档」右键菜单）
 
-文件路由：双击文件 → 按扩展名查 host 注册表 → 打开对应 windowKind 窗口；无匹配 →
+文件路由：双击文件 -> 按扩展名查 host 注册表 -> 打开对应 windowKind 窗口；无匹配 ->
 「未安装可处理此格式的软件」提示（附建议安装的包名）。
 
 ## 4. 桌面系统设计（dsh-nas）
@@ -45,7 +45,7 @@ client 侧（dsh-nas 声明 slots，软件包注入）：
 
 - **内嵌态**：桌面渲染在侧边栏区域内（窄卡片布局）：顶部应用图标行/网格、底部「放大」
   按钮；文件管理器以紧凑列表呈现。窗口在侧栏内层叠（简化标题栏）。
-- **全屏态**：点「放大」→ 全屏桌面（fixed 覆盖，经 `shell.overlay` 或独立 fixed 层）：
+- **全屏态**：点「放大」-> 全屏桌面（fixed 覆盖，经 `shell.overlay` 或独立 fixed 层）：
   桌面图标网格、可拖拽/缩放/最大化窗口、任务栏（运行中窗口 + 应用启动器 + 时钟）。
 - 两态共享同一窗口状态模型（useNasStore），仅布局与交互密度不同；切换不丢状态。
 - 交互规范：键盘可达（Esc 退出全屏、窗口焦点闭环、图标方向键导航）、移动端 390px
@@ -86,7 +86,7 @@ client 侧（dsh-nas 声明 slots，软件包注入）：
 
 ## 5. 软件能力映射（对齐 OAgent 办公功能）
 
-OAgent（`~/桌面/codes/agent/1`）办公能力 → dsh 软件包映射：
+OAgent（`~/桌面/codes/agent/1`）办公能力 -> dsh 软件包映射：
 
 | OAgent 能力 | 落点 | 技术选型 |
 |---|---|---|
@@ -94,7 +94,7 @@ OAgent（`~/桌面/codes/agent/1`）办公能力 → dsh 软件包映射：
 | Excel 读写/公式保留 | dsh-office | exceljs（读写）+ 自研网格编辑器 |
 | PPT 创建/逐页预览 | dsh-office | pptxgenjs（生成）+ 画布幻灯片编辑器（自研） |
 | PDF 提取/合并/拆分 | dsh-office | pdf-lib（合并/拆分）+ pdfjs-dist（渲染） |
-| Office→PDF 转换 | dsh-office | LibreOffice headless（本机已装，缺时报错） |
+| Office->PDF 转换 | dsh-office | LibreOffice headless（本机已装，缺时报错） |
 | 邮件收/发 | dsh-mail | nodemailer（SMTP）+ imapflow（IMAP）；mock 先行 |
 | OCR 扫描识别 | dsh-office | 插件独立配置 OpenAI 兼容视觉端点；untrusted + 审批 |
 | 全文检索 | dsh-nas | better-sqlite3 FTS5 + 中文分词 |
@@ -106,8 +106,8 @@ OAgent（`~/桌面/codes/agent/1`）办公能力 → dsh 软件包映射：
 
 ## 6. 用户与 agent 协同
 
-- **v1 审阅流**：agent 编辑文件 → 生成变更记录（快照 diff）→ 桌面通知 + 文件窗口内
-  diff 视图 → 用户接受/拒绝/手改 → 接受才落盘；全程审计，可回滚
+- **v1 审阅流**：agent 编辑文件 -> 生成变更记录（快照 diff）-> 桌面通知 + 文件窗口内
+  diff 视图 -> 用户接受/拒绝/手改 -> 接受才落盘；全程审计，可回滚
 - **v2 实时并发**：CRDT（预留：文件版本号 + 变更日志，架构上不堵路）
 
 ## 7. 数据与安全
@@ -130,8 +130,8 @@ OAgent（`~/桌面/codes/agent/1`）办公能力 → dsh 软件包映射：
 - **M1 系统骨架（dsh-nas）**：包脚手架、应用注册协议、内嵌+全屏两态桌面、窗口系统、
   文件管理器、回收站、设置应用、审计与回滚接入
 - **M2 系统服务**：全文检索、计划任务 + 通知、桌面图标/任务栏完善
-- **M3 软件·dsh-office**：四件套预览与编辑、Office→PDF、OCR
-- **M4 软件·dsh-mail**：IMAP 收件/搜索/附件 + SMTP 草稿/发送（mock → 真实）
+- **M3 软件·dsh-office**：四件套预览与编辑、Office->PDF、OCR
+- **M4 软件·dsh-mail**：IMAP 收件/搜索/附件 + SMTP 草稿/发送（mock -> 真实）
 - **M5 协同与打磨**：agent 审阅流（diff/接受/拒绝）、移动端适配、性能与无障碍
 
 ## 10. 验收基线
@@ -153,13 +153,12 @@ OAgent（`~/桌面/codes/agent/1`）办公能力 → dsh 软件包映射：
 - [x] 页面设置（纸张/方向/页边距）与打印导出（LibreOffice）
 - [x] 样式体系（清除格式/标题层级）与最近文件/模板
 
-### Excel（exceljs + hyperformula）
-- [x] 网格编辑、行列管理、列宽拖拽、多 sheet
-- [x] 公式引擎（hyperformula：常用函数 + 依赖重算 + fx 栏 + 自动求和）
-- [x] 单元格格式（数字/日期/货币/百分比）
-- [x] 排序/筛选、合并单元格、冻结行列
-- [x] 轻量图表（柱状图，SVG 自绘）
-- [x] xlsx 公式往返（保存 formula 字符串）
+### Excel（Univer 引擎 + exceljs 桥接；旧自研网格保留为备选）
+- [x] Univer 完整表格 UI（官方在线表格开源引擎：公式/格式/筛选/图表/合并/冻结）
+- [x] xlsx 双向桥接：open 读取（exceljs -> Univer workbook），save 写回
+- [x] 公式往返（'=SUM(...)' 存为真公式，Excel 可计算；读回保留公式文本）
+- [x] 多 sheet 映射（首个 sheet 复用活动表，其余 insertSheet）
+- [x] hyperformula 公式引擎（服务端校验/计算）
 
 ### PPT（pptxgenjs）
 - [x] 文本幻灯片编辑与往返
