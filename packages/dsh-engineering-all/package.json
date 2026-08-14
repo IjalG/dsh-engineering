@@ -28,7 +28,8 @@
   "dependencies": {
     "@linxin666/dsh-beyond-workscope-eng": "link:../dsh-beyond-workscope-eng",
     "@linxin666/dsh-nas": "link:../dsh-nas",
-    "@linxin666/dsh-office": "link:../dsh-office"
+    "@linxin666/dsh-office": "link:../dsh-office",
+    "@linxin666/dsh-mail": "link:../dsh-mail"
   },
   "peerDependencies": {
     "@deepseek-ai/dsh-client-locale": "^0.1.0-rc.6",

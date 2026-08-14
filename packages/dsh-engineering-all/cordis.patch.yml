@@ -19,3 +19,8 @@
 - insert:
     - id: office
       name: '@linxin666/dsh-office'
+
+# dsh-mail 软件包（邮箱应用）
+- insert:
+    - id: mail
+      name: '@linxin666/dsh-mail'

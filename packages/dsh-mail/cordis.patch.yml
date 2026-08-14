@@ -1,0 +1,4 @@
+# dsh-mail software package: registers as a dsh-nas desktop app.
+- insert:
+    - id: mail
+      name: '@linxin666/dsh-mail'
