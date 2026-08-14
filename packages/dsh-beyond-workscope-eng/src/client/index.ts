@@ -1,0 +1,116 @@
+/**
+ * Browser-half entry for the dsh-beyond-workscope plugin — runs inside the
+ * dsh web GUI.
+ *
+ * Mounts the grant confirmation card + grant manager as a floating panel on
+ * `document.body` (plain DOM + one React root, like the sibling plugins'
+ * DOM-level extension pattern). Failure policy: mounting problems are logged,
+ * never thrown — the web shell fails the whole boot when a plugin apply
+ * throws, and an external plugin must not take the GUI down.
+ *
+ * Export discipline (packages/client rule): the /client surface carries what
+ * cordis loading needs plus types only — all value exports stay internal.
+ */
+import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+// Type-only: pulls the locale plugin's Context merge (ctx.locale).
+import type {} from '@deepseek-ai/dsh-client-locale/client'
+// Type-only: pulls ui-conversation's SlotMap augmentation (conversation.view).
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+// Type-only: pulls the slots service's Context merge (ctx.slots).
+import type {} from '@deepseek-ai/dsh-client-ui-slots'
+import { WorkscopeApi } from './api.ts'
+import { mountPanel } from './mount.tsx'
+import { SessionInfoPanel } from './SessionInfoPanel.tsx'
+import { en, zh, type BeyondKey } from './locales.ts'
+
+/** Locale namespace this plugin owns. */
+const NS = 'beyond-workscope'
+
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface LocaleNamespaceMap {
+    /** beyond-workscope card copy. */
+    'beyond-workscope': BeyondKey
+  }
+}
+
+/** Required services (fiber inject waiting — the runtime must be up first). */
+export const inject = ['slots', 'locale']
+
+/** Type-only surface (export discipline: no value exports beyond the plugin contract). */
+export type { GrantCard } from './GrantCard.tsx'
+export type { BeyondKey } from './locales.ts'
+
+/**
+ * Mount the beyond-workscope card.
+ * @param ctx - client root context.
+ */
+export function apply(ctx: ClientContext): void {
+  try {
+    ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-beyond-workscope: dictionaries')
+  } catch (error) {
+    console.warn('[dsh-beyond-workscope] locale registration failed:', error)
+  }
+
+  // Auto-switch (browser half): probe the host's provider marker. When the
+  // dsh-web-ui family provides the plugin, the marker answers
+  // `provider: dsh-web-ui` and this copy stands down; `dsh-engineering`
+  // means THIS copy is serving and the browser surface mounts. The probe
+  // retries briefly because host routes may register a tick later.
+  void detectEngineeringProvider().then(serving => {
+    if (!serving) return
+    try {
+      registerSurface(ctx)
+    } catch (error) {
+      console.warn('[dsh-beyond-workscope-eng] surface registration failed:', error)
+    }
+  }).catch(() => undefined)
+
+}
+
+/** Whether THIS engineering copy is the serving provider. */
+async function detectEngineeringProvider(): Promise<boolean> {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    try {
+      const response = await fetch('/api/dsh-beyond-workscope-eng/ping')
+      if (response.ok) {
+        const body = await response.json() as { provider?: string }
+        return body.provider === 'dsh-engineering'
+      }
+    } catch {
+      // host not up yet — retry
+    }
+    await new Promise(resolve => setTimeout(resolve, 500))
+  }
+  return false
+}
+
+/** Mount the 会话信息 tab and card surface (provider serving path only). */
+function registerSurface(ctx: ClientContext): void {
+  // The 会话信息 view tab: right of 对话/轨迹 in the conversation view ring.
+  // Registration rides the slot service's effect wrapper, so plugin unload
+  // removes the tab. A failure here degrades the tab, never the GUI.
+  try {
+    const t = ctx.locale.bind(NS)
+    ctx.slots.inject('conversation.view', () => ctx.slots.register({
+      name: 'conversation.view',
+      id: 'session-info',
+      order: 20,
+      locale: NS,
+      label: () => t('view.sessionInfo'),
+      inject: (sessionId) => ({ sessionId, api: new WorkscopeApi() }),
+    }, SessionInfoPanel))
+  } catch (error) {
+    console.warn('[dsh-beyond-workscope] session-info tab registration failed:', error)
+  }
+
+  let disposer: (() => void) | undefined
+  try {
+    disposer = mountPanel()
+  } catch (error) {
+    // DOM failures degrade the card, never the GUI.
+    console.warn('[dsh-beyond-workscope-eng] mount failed:', error)
+  }
+  ctx.effect(() => () => {
+    disposer?.()
+  }, 'dsh-beyond-workscope-eng: card mount')
+}
