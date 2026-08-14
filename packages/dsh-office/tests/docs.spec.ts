@@ -86,6 +86,19 @@ describe('PDF merge and split', () => {
   })
 })
 
+describe('docx image and table round-trip', () => {
+  it('preserves tables and images through docx', async () => {
+    const out = join(tmp, 'rich.docx')
+    // 1x1 png data url
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    const html = `<h1>标题</h1><table><tr><td>单元格A</td><td>单元格B</td></tr></table><img src="${png}" data-width="64" data-height="64" />`
+    await htmlToDocx(html, out)
+    const { html: readBack } = await docxToHtml(out)
+    expect(readBack).toContain('单元格A')
+    expect(readBack).toContain('data:image/png;base64')
+  })
+})
+
 describe('pptx round-trip', () => {
   it('writes slides to pptx and reads the text back', async () => {
     const out = join(tmp, 'deck.pptx')
@@ -95,5 +108,15 @@ describe('pptx round-trip', () => {
     expect(slides.length).toBe(2)
     expect(slides[0]?.title).toBe('季度汇报')
     expect(slides[0]?.body).toContain('销售增长 20%')
+  })
+
+  it('writes slides with an image without failing', async () => {
+    const out = join(tmp, 'deck2.pptx')
+    const { slidesToPptx } = await import('../src/docs.ts')
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    await slidesToPptx({ slides: [{ title: '图', body: ['带图'], image: png, notes: '备注文本' }] }, out)
+    const { stat } = await import('node:fs/promises')
+    const info = await stat(out)
+    expect(info.size).toBeGreaterThan(1000)
   })
 })

@@ -3,10 +3,17 @@
  * Open extracts slide texts; save regenerates the pptx via pptxgenjs.
  */
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import type { OfficeKey } from './locales.ts'
 import type { SlideText } from '../docs.ts'
+
+/** Slide with optional image (base64) and speaker notes. */
+interface SlideFull extends SlideText {
+  image?: string
+  imageMime?: string
+  notes?: string
+}
 import { OfficeApi } from './api.ts'
 import css from './office.module.css'
 
@@ -18,7 +25,10 @@ export interface PptAppProps {
 const api = new OfficeApi()
 
 export function PptApp({ path, t }: PptAppProps): React.ReactElement {
-  const [slides, setSlides] = useState<SlideText[]>([{ title: '', body: [] }])
+  const [slides, setSlides] = useState<SlideFull[]>([{ title: '', body: [] }])
+  const [show, setShow] = useState(false)
+  const [showIndex, setShowIndex] = useState(0)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [active, setActive] = useState(0)
   const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(true)
@@ -42,7 +52,7 @@ export function PptApp({ path, t }: PptAppProps): React.ReactElement {
 
   useEffect(() => { void load() }, [load])
 
-  const updateSlide = (index: number, patch: Partial<SlideText>): void => {
+  const updateSlide = (index: number, patch: Partial<SlideFull>): void => {
     setSlides((prev) => prev.map((slide, i) => (i === index ? { ...slide, ...patch } : slide)))
   }
 
@@ -55,6 +65,30 @@ export function PptApp({ path, t }: PptAppProps): React.ReactElement {
     if (slides.length <= 1) return
     setSlides((prev) => prev.filter((_, i) => i !== index))
     setActive((prev) => Math.max(0, prev - 1))
+  }
+
+  const insertImage = (): void => {
+    fileInputRef.current?.click()
+  }
+
+  const onImageChosen = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    const file = event.target.files?.[0]
+    if (file === undefined) return
+    if (file.size > 2 * 1024 * 1024) { setError('图片不能超过 2MB'); return }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const src = typeof reader.result === 'string' ? reader.result : ''
+      if (src === '') return
+      updateSlide(active, { image: src, imageMime: file.type })
+    }
+    reader.readAsDataURL(file)
+    event.target.value = ''
+  }
+
+  const startShow = (): void => {
+    if (slides.length === 0) return
+    setShowIndex(0)
+    setShow(true)
   }
 
   const save = async (): Promise<void> => {
@@ -71,6 +105,39 @@ export function PptApp({ path, t }: PptAppProps): React.ReactElement {
 
   const slide = slides[active]
 
+  useEffect(() => {
+    if (!show) return
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setShow(false)
+      else if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === ' ') {
+        setShowIndex((prev) => Math.min(slides.length - 1, prev + 1))
+      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        setShowIndex((prev) => Math.max(0, prev - 1))
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [show, slides.length])
+
+  if (show) {
+    const current = slides[showIndex]
+    return (
+      <div className={css.slideshow} onClick={() => setShowIndex((prev) => Math.min(slides.length - 1, prev + 1))}>
+        <div className={css.slideshowStage}>
+          {current?.image !== undefined && <img className={css.slideshowImage} src={current.image} alt="" />}
+          <h1 className={css.slideshowTitle}>{current?.title}</h1>
+          <div className={css.slideshowBody}>
+            {current?.body.map((line, index) => <p key={index}>{line}</p>)}
+          </div>
+        </div>
+        <div className={css.slideshowFooter}>
+          <span>{showIndex + 1} / {slides.length}</span>
+          <span>{t('ppt.slideShowHint')}</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={css.container}>
       <div className={css.toolbar}>
@@ -78,6 +145,8 @@ export function PptApp({ path, t }: PptAppProps): React.ReactElement {
         <span className={css.spacer} />
         {status !== '' && <span className={css.status}>{status}</span>}
         <button type="button" className={css.button} onClick={addSlide}>{t('ppt.addSlide')}</button>
+        <button type="button" className={css.button} onClick={insertImage}>{t('ppt.addImage')}</button>
+        <button type="button" className={css.button} onClick={startShow}>{t('ppt.slideshow')}</button>
         <button type="button" className={css.button} onClick={() => void save()}>{t('editor.save')}</button>
       </div>
       {error !== undefined && <div className={css.error}>{error}</div>}
@@ -108,9 +177,22 @@ export function PptApp({ path, t }: PptAppProps): React.ReactElement {
               value={slide.body.join('\n')}
               onChange={(event) => updateSlide(active, { body: event.target.value.split('\n') })}
             />
+            {slide.image !== undefined && (
+              <div className={css.pptImageWrap}>
+                <img className={css.pptImage} src={slide.image} alt="" />
+                <button type="button" className={css.pptThumbDel} onClick={() => updateSlide(active, { image: undefined })}>×</button>
+              </div>
+            )}
+            <textarea
+              className={[css.input, css.pptNotesInput].join(' ')}
+              placeholder={t('ppt.notes')}
+              value={slide.notes ?? ''}
+              onChange={(event) => updateSlide(active, { notes: event.target.value })}
+            />
           </div>
         </div>
       )}
+      <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onImageChosen} />
     </div>
   )
 }

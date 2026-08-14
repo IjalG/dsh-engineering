@@ -5,7 +5,7 @@
  * back to docx (host docx).
  */
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -13,6 +13,30 @@ import Table from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
+import Image from '@tiptap/extension-image'
+
+/** Image extension carrying data-width/height for docx export. */
+const ImageWithSize = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      'data-width': {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute('data-width'),
+        renderHTML: (attributes: Record<string, unknown>) => ({
+          'data-width': attributes['data-width'],
+        }),
+      },
+      'data-height': {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute('data-height'),
+        renderHTML: (attributes: Record<string, unknown>) => ({
+          'data-height': attributes['data-height'],
+        }),
+      },
+    }
+  },
+})
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import type { OfficeKey } from './locales.ts'
 import { OfficeApi } from './api.ts'
@@ -45,6 +69,8 @@ function ToolButton({ label, title, active, disabled, onClick }: {
 }
 
 export function WordApp({ path, t }: WordAppProps): React.ReactElement {
+  const [currentPath, setCurrentPath] = useState(path)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | undefined>()
@@ -57,6 +83,7 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
       TableRow,
       TableHeader,
       TableCell,
+      ImageWithSize.configure({ allowBase64: true }),
     ],
     content: '<p></p>',
     editorProps: {
@@ -71,7 +98,7 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
     setLoading(true)
     setError(undefined)
     try {
-      const result = await api.wordOpen(path)
+      const result = await api.wordOpen(currentPath)
       if (!result.ok) { setError(result.error); return }
       editor?.commands.setContent(result.html)
     } catch (err) {
@@ -79,7 +106,7 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
     } finally {
       setLoading(false)
     }
-  }, [path, editor])
+  }, [currentPath, editor])
 
   useEffect(() => { void load() }, [load])
 
@@ -87,9 +114,49 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
     if (editor === null) return
     setStatus(t('editor.saving'))
     try {
-      const result = await api.wordSave(path, editor.getHTML())
+      const result = await api.wordSave(currentPath, editor.getHTML())
       if (!result.ok) { setError(result.error); setStatus('') }
       else { setStatus(t('editor.saved')); setTimeout(() => setStatus(''), 1500) }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+      setStatus('')
+    }
+  }
+
+  const insertImage = (): void => {
+    fileInputRef.current?.click()
+  }
+
+  const onImageChosen = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    const file = event.target.files?.[0]
+    if (file === undefined || editor === null) return
+    if (file.size > 2 * 1024 * 1024) { setError('图片不能超过 2MB'); return }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const src = typeof reader.result === 'string' ? reader.result : ''
+      if (src === '') return
+      // Probe natural size and stamp it onto the element for docx export.
+      const img = new globalThis.Image()
+      img.onload = () => {
+        const width = Math.round(img.width)
+        const height = Math.round(img.height)
+        editor.chain().focus().setImage({ src, 'data-width': String(width), 'data-height': String(height) } as never).run()
+      }
+      img.src = src
+    }
+    reader.readAsDataURL(file)
+    event.target.value = ''
+  }
+
+  const saveAs = async (): Promise<void> => {
+    const name = globalThis.prompt('另存为（工作区相对路径）', currentPath)
+    if (name === null || name.trim() === '') return
+    const target = name.trim().endsWith('.docx') ? name.trim() : `${name.trim()}.docx`
+    setStatus(t('editor.saving'))
+    try {
+      const result = await api.wordSave(target, editor?.getHTML() ?? '')
+      if (!result.ok) { setError(result.error); setStatus('') }
+      else { setCurrentPath(target); setStatus(t('editor.saved')); setTimeout(() => setStatus(''), 1500) }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       setStatus('')
@@ -106,6 +173,9 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
         {status !== '' && <span className={css.status}>{status}</span>}
         <button type="button" className={css.button} onClick={() => void save()} disabled={disabled}>
           {t('editor.save')}
+        </button>
+        <button type="button" className={css.button} onClick={saveAs} disabled={disabled}>
+          {t('editor.saveAs')}
         </button>
       </div>
       <div className={css.formatBar}>
@@ -131,12 +201,14 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
         <ToolButton label={t('word.merge')} title={t('word.merge')} disabled={disabled} onClick={() => editor?.chain().focus().mergeCells().run()} />
         <ToolButton label={t('word.headerRow')} title={t('word.headerRow')} active={editor?.isActive('tableHeader')} disabled={disabled} onClick={() => editor?.chain().focus().toggleHeaderRow().run()} />
         <ToolButton label={t('word.delTable')} title={t('word.delTable')} disabled={disabled} onClick={() => editor?.chain().focus().deleteTable().run()} />
+        <ToolButton label={t('word.image')} title={t('word.image')} disabled={disabled} onClick={insertImage} />
         <span className={css.barSeparator} />
         <ToolButton label={t('word.undo')} title={t('word.undo')} disabled={disabled || !editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()} />
         <ToolButton label={t('word.redo')} title={t('word.redo')} disabled={disabled || !editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()} />
       </div>
       {error !== undefined && <div className={css.error}>{error}</div>}
       {loading && <div className={css.hint}>{t('editor.saving')}</div>}
+      <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onImageChosen} />
       {!loading && editor !== null && <EditorContent editor={editor} className={css.editor} />}
     </div>
   )

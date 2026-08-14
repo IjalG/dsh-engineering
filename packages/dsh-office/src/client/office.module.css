@@ -807,3 +807,93 @@
     border-color: rgba(229, 233, 240, 0.14);
   }
 }
+
+/* ---- slideshow ---- */
+
+.slideshow {
+  position: fixed;
+  inset: 0;
+  z-index: 99990;
+  background: #0f1319;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  animation: nasFade 160ms ease;
+}
+
+.slideshowStage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 60px 40px;
+  max-width: 1100px;
+  width: 100%;
+}
+
+.slideshowImage {
+  max-height: 46vh;
+  max-width: 80%;
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.slideshowTitle {
+  margin: 0;
+  font-size: 38px;
+  color: #f5f7fa;
+  text-align: center;
+}
+
+.slideshowBody p {
+  margin: 6px 0;
+  font-size: 19px;
+  color: rgba(245, 247, 250, 0.82);
+  text-align: center;
+}
+
+.slideshowFooter {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 24px;
+  color: rgba(245, 247, 250, 0.5);
+  font-size: 12px;
+}
+
+/* ---- ppt image + notes ---- */
+
+.pptImageWrap {
+  position: relative;
+  max-width: 380px;
+}
+
+.pptImage {
+  max-width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(31, 35, 40, 0.12);
+}
+
+.pptImageWrap .pptThumbDel {
+  opacity: 1;
+}
+
+.pptNotesInput {
+  min-height: 60px;
+  resize: vertical;
+  font-size: 12.5px;
+  color: rgba(31, 35, 40, 0.7);
+}
+
+/* ---- word images ---- */
+
+.editorArea img {
+  max-width: 100%;
+  border-radius: 6px;
+  display: block;
+  margin: 8px 0;
+}

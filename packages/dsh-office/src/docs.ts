@@ -11,7 +11,7 @@ import { mkdirSync } from 'node:fs'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import mammoth from 'mammoth'
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, LevelFormat, AlignmentType } from 'docx'
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, LevelFormat, AlignmentType, ImageRun } from 'docx'
 import ExcelJS from 'exceljs'
 import { PDFDocument } from 'pdf-lib'
 import PptxGenJS from 'pptxgenjs'
@@ -82,12 +82,20 @@ export async function htmlToDocx(html: string, outPath: string): Promise<void> {
   await writeFile(outPath, buffer)
 }
 
+/** A block-level image (data URL). */
+export interface HtmlImage {
+  src: string
+  width?: number
+  height?: number
+}
+
 interface HtmlBlock {
-  kind: 'h1' | 'h2' | 'h3' | 'p' | 'li' | 'table'
+  kind: 'h1' | 'h2' | 'h3' | 'p' | 'li' | 'table' | 'img'
   text?: string
   rows?: string[][]
   ordered?: boolean
   level?: number
+  image?: HtmlImage
 }
 
 /** Minimal HTML block parser (regex-based, tolerant). */
@@ -114,7 +122,7 @@ export function parseHtmlToBlocks(html: string): HtmlBlock[] {
 
 function pushInlineBlocks(blocks: HtmlBlock[], segment: string): void {
   // Split into block-level tags, preserving list context.
-  const re = /<(h[1-6]|p|ul|ol|li)[^>]*>([\s\S]*?)<\/\1>/gi
+  const re = /<(h[1-6]|p|ul|ol|li)[^>]*>([\s\S]*?)<\/\1>|<img[^>]*>/gi
   let cursor = 0
   let ordered = false
   let listLevel = 0
@@ -122,6 +130,24 @@ function pushInlineBlocks(blocks: HtmlBlock[], segment: string): void {
   while ((match = re.exec(segment)) !== null) {
     const before = segment.slice(cursor, match.index).trim()
     if (before !== '') blocks.push({ kind: 'p', text: plainText(before) })
+    if (match[0].toLowerCase().startsWith('<img')) {
+      const srcMatch = /src="([^"]+)"/i.exec(match[0])
+      const wMatch = /data-width="(\d+)"/i.exec(match[0])
+      const hMatch = /data-height="(\d+)"/i.exec(match[0])
+      const src = srcMatch?.[1] ?? ''
+      if (src !== '') {
+        blocks.push({
+          kind: 'img',
+          image: {
+            src,
+            width: wMatch !== null ? Number(wMatch[1]) : undefined,
+            height: hMatch !== null ? Number(hMatch[1]) : undefined,
+          },
+        })
+      }
+      cursor = match.index + match[0].length
+      continue
+    }
     const tag = match[1].toLowerCase()
     const inner = match[2]
     if (tag === 'ul' || tag === 'ol') {
@@ -227,6 +253,11 @@ function blocksToDocx(blocks: HtmlBlock[]): Array<Paragraph | Table> {
       const rows = (block.rows ?? []).map((cells) => new TableRow({ children: cells.map((cell) => new TableCell({ children: [new Paragraph({ text: cell })], width: { size: 100 / Math.max(1, cells.length), type: WidthType.PERCENTAGE } })) }))
       children.push(new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE } }))
     }
+    else if (block.kind === 'img' && block.image !== undefined) {
+      flushList()
+      const imageRun = dataUrlToImageRun(block.image)
+      if (imageRun !== undefined) children.push(new Paragraph({ children: [imageRun] }))
+    }
   }
   flushList()
   return children
@@ -279,6 +310,10 @@ export async function gridsToXlsx(grids: SheetGrid[], outPath: string): Promise<
 export interface SlideText {
   title: string
   body: string[]
+  /** Optional base64 data URL image. */
+  image?: string
+  /** Optional speaker notes. */
+  notes?: string
 }
 
 /** Presentation content (slides of title/body text). */
@@ -322,8 +357,29 @@ export async function slidesToPptx(presentation: PresentationText, outPath: stri
     if (slide.title !== '') {
       slideDef.addText(slide.title, { x: 0.5, y: 0.4, w: 9, h: 0.9, fontSize: 28, bold: true, color: '1F2937' })
     }
-    if (slide.body.length > 0) {
+    // Image (data URL) sits right of the text when present.
+    if (slide.image !== undefined && slide.image !== '') {
+      try {
+        const match = /^data:(image\/[\w.+-]+);base64,(.+)$/s.exec(slide.image)
+        if (match !== null) {
+          const mime = match[1]!.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
+          const data = `data:image/${mime};base64,${match[2]}`
+          slideDef.addImage({ data, x: 0.5, y: 1.5, w: 4.4, h: 3.3 })
+          if (slide.body.length > 0) {
+            slideDef.addText(slide.body.slice(0, 12).join('\n'), { x: 5.1, y: 1.5, w: 4.4, h: 4.5, fontSize: 16, color: '374151', breakLine: true })
+          }
+        }
+      } catch {
+        // bad image -> text only
+        if (slide.body.length > 0) {
+          slideDef.addText(slide.body.slice(0, 12).join('\n'), { x: 0.5, y: 1.5, w: 9, h: 4.5, fontSize: 16, color: '374151', breakLine: true })
+        }
+      }
+    } else if (slide.body.length > 0) {
       slideDef.addText(slide.body.slice(0, 12).join('\n'), { x: 0.5, y: 1.5, w: 9, h: 4.5, fontSize: 16, color: '374151', breakLine: true })
+    }
+    if (slide.notes !== undefined && slide.notes !== '') {
+      slideDef.addNotes(slide.notes)
     }
   }
   mkdirSync(dirname(outPath), { recursive: true })
@@ -371,6 +427,18 @@ export async function pdfText(filePath: string): Promise<string> {
     parts.push(`page ${page.getSize().width}x${page.getSize().height}`)
   }
   return parts.join('\n')
+}
+
+/** data URL -> docx ImageRun (returns undefined for unsupported payloads). */
+function dataUrlToImageRun(image: HtmlImage): ImageRun | undefined {
+  const match = /^data:(image\/[\w.+-]+);base64,(.+)$/s.exec(image.src)
+  if (match === null) return undefined
+  const rawMime = match[1]!
+  const bytes = Uint8Array.from(atob(match[2]!), (char) => char.charCodeAt(0))
+  const width = Math.max(40, Math.min(800, image.width ?? 320))
+  const height = Math.max(40, Math.min(800, image.height ?? Math.round((width * 3) / 4)))
+  const mime = rawMime === 'image/jpeg' ? 'jpg' : rawMime === 'image/png' ? 'png' : rawMime === 'image/gif' ? 'gif' : rawMime === 'image/bmp' ? 'bmp' : 'png'
+  return new ImageRun({ data: bytes, transformation: { width, height }, type: mime })
 }
 
 /** Office file -> PDF via LibreOffice headless. */
