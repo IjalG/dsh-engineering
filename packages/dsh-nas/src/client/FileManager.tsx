@@ -232,13 +232,13 @@ export function FileManager({ t }: FileManagerProps): React.ReactElement {
       </div>
       <div className={css.fmHead}>
         <button type="button" className={css.fmHeadCell} onClick={() => cycleSort('name')}>
-          {t('fm.name')}{state.sortKey === 'name' ? (state.sortAsc ? ' ↑' : ' ↓') : ''}
+          {t('fm.name')}{state.sortKey === 'name' ? (state.sortAsc ? ' ^' : ' v') : ''}
         </button>
         <button type="button" className={css.fmHeadSize} onClick={() => cycleSort('size')}>
-          {t('fm.size')}{state.sortKey === 'size' ? (state.sortAsc ? ' ↑' : ' ↓') : ''}
+          {t('fm.size')}{state.sortKey === 'size' ? (state.sortAsc ? ' ^' : ' v') : ''}
         </button>
         <button type="button" className={css.fmHeadTime} onClick={() => cycleSort('mtime')}>
-          {t('fm.modified')}{state.sortKey === 'mtime' ? (state.sortAsc ? ' ↑' : ' ↓') : ''}
+          {t('fm.modified')}{state.sortKey === 'mtime' ? (state.sortAsc ? ' ^' : ' v') : ''}
         </button>
         <span className={css.fmHeadActions} />
       </div>

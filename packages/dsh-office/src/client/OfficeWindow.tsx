@@ -132,7 +132,7 @@ export function OfficeWindow({ window, t, sessionId }: OfficeWindowProps): React
         {browse && (
           <div className={css.fileList}>
             <div className={css.browseBar}>
-              <button type="button" className={css.button} disabled={browseDir === ''} onClick={() => setBrowseDir(parentDir(browseDir))}>↑</button>
+              <button type="button" className={css.button} disabled={browseDir === ''} onClick={() => setBrowseDir(parentDir(browseDir))}>^</button>
               <span className={css.path}>{browseDir === '' ? '/' : `/${browseDir}`}</span>
             </div>
             {entries.map((entry) => (
