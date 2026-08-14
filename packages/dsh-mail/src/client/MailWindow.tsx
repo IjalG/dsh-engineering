@@ -32,17 +32,19 @@ export function MailWindow({ t, sessionId }: MailWindowProps): React.ReactElemen
   useEffect(() => { setMailSessionId(sessionId) }, [sessionId])
   const [view, setView] = useState<View>('inbox')
   const [items, setItems] = useState<MailSummary[]>([])
+  const [configured, setConfigured] = useState(false)
   const [message, setMessage] = useState<MailMessage | undefined>()
   const [to, setTo] = useState('')
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [status, setStatus] = useState('')
-  const [config, setConfig] = useState<MailConfigView>({ mock: true, smtpHost: '', smtpPort: 587, imapHost: '', imapPort: 993, fromName: '', fromAddress: '' })
+  const [config, setConfig] = useState<MailConfigView>({ configured: false, mock: false, smtpHost: '', smtpPort: 587, imapHost: '', imapPort: 993, fromName: '', fromAddress: '' })
 
   const refresh = useCallback(async (): Promise<void> => {
     try {
       const result = await api.inboxList()
       setItems(result.items)
+      setConfigured(result.configured ?? false)
     } catch {
       setItems([])
     }
@@ -77,7 +79,7 @@ export function MailWindow({ t, sessionId }: MailWindowProps): React.ReactElemen
   useEffect(() => { void loadConfig() }, [loadConfig])
 
   const saveConfig = async (): Promise<void> => {
-    await api.configSet({ ...config, mock: config.mock ? 'true' : 'false' })
+    await api.configSet({ ...config })
     setStatus(t('settings.saved'))
     setTimeout(() => setStatus(''), 1500)
   }
@@ -97,7 +99,7 @@ export function MailWindow({ t, sessionId }: MailWindowProps): React.ReactElemen
         <div className={css.body}>
           {message === undefined ? (
             <div className={css.list}>
-              {items.length === 0 && <div className={css.empty}>{t('inbox.empty')}</div>}
+              {items.length === 0 && <div className={css.empty}>{configured ? t('inbox.emptyReal') : t('inbox.empty')}</div>}
               {items.map((item) => (
                 <button key={`${item.uid}-${item.date}`} type="button" className={css.row} onClick={() => void open(item)}>
                   <span className={[css.dot, item.seen ? '' : css.dotUnseen].join(' ')} aria-hidden="true" />
@@ -146,10 +148,11 @@ export function MailWindow({ t, sessionId }: MailWindowProps): React.ReactElemen
       {view === 'settings' && (
         <div className={css.body}>
           <div className={css.form}>
-            <label className={css.checkRow}>
-              <input type="checkbox" checked={config.mock} onChange={(event) => setConfig({ ...config, mock: event.target.checked })} />
-              {t('settings.mock')}
-            </label>
+            <div className={css.formRow}>
+              <span className={[css.configState, configured ? css.configStateOn : ''].join(' ')}>
+                {configured ? t('settings.configured') : t('settings.notConfigured')}
+              </span>
+            </div>
             <div className={css.formRow}><span className={css.label}>{t('settings.smtpHost')}</span><input className={css.input} value={config.smtpHost} onChange={(event) => setConfig({ ...config, smtpHost: event.target.value })} /></div>
             <div className={css.formRow}><span className={css.label}>{t('settings.smtpPort')}</span><input className={css.input} type="number" value={config.smtpPort} onChange={(event) => setConfig({ ...config, smtpPort: Number(event.target.value) || 587 })} /></div>
             <div className={css.formRow}><span className={css.label}>{t('settings.smtpUser')}</span><input className={css.input} value={config.smtpUser ?? ''} onChange={(event) => setConfig({ ...config, smtpUser: event.target.value })} /></div>

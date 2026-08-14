@@ -40,6 +40,7 @@ async function call<T>(action: string, body: Record<string, unknown> = {}): Prom
 }
 
 export interface MailConfigView {
+  configured: boolean
   mock: boolean
   smtpHost: string
   smtpPort: number
@@ -55,7 +56,7 @@ export interface MailConfigView {
 
 /** Mail API facade. */
 export class MailApi {
-  inboxList(): Promise<{ ok: boolean; items: MailSummary[]; mock: boolean }> {
+  inboxList(): Promise<{ ok: boolean; items: MailSummary[]; mock: boolean; configured?: boolean; error?: string }> {
     return call('inbox.list')
   }
   messageRead(uid: number): Promise<{ ok: boolean; message?: MailMessage; error?: string }> {

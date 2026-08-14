@@ -56,16 +56,24 @@ export function mailConfigPath(home = process.env.DSH_HOME ?? process.env.HOME ?
   return join(home, '.dsh', 'dsh-mail.json')
 }
 
-/** Read config (missing/corrupt -> mock defaults). */
+/** Read config (missing/corrupt -> empty = unconfigured). */
 export function readMailConfig(path = mailConfigPath()): MailConfig {
   try {
-    if (!existsSync(path)) return { mock: true }
+    if (!existsSync(path)) return {}
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as MailConfig
-    if (typeof parsed !== 'object' || parsed === null) return { mock: true }
+    if (typeof parsed !== 'object' || parsed === null) return {}
     return parsed
   } catch {
-    return { mock: true }
+    return {}
   }
+}
+
+/** Whether real SMTP/IMAP credentials are configured. */
+export function isMailConfigured(config: MailConfig): boolean {
+  return config.mock !== false
+    ? false
+    : (config.smtpHost !== undefined && config.smtpHost !== '' && config.smtpUser !== undefined && config.smtpUser !== '')
+      || (config.imapHost !== undefined && config.imapHost !== '' && config.imapUser !== undefined && config.imapUser !== '')
 }
 
 /** Write config with 0600. */
@@ -114,19 +122,30 @@ export class MailEngine {
     private readonly config: MailConfig,
   ) {}
 
-  /** List inbox summaries (mock: .eml files; real: IMAP search). */
+  /** List inbox summaries (explicit mock for tests; real IMAP otherwise). */
   async listInbox(limit = 50): Promise<MailSummary[]> {
-    if (this.config.mock !== false) {
-      const dir = mockInbox(this.root)
-      if (!existsSync(dir)) return []
-      const files = readdirSync(dir).filter((name) => name.endsWith('.eml')).sort()
-      const items: MailSummary[] = []
-      for (const file of files.slice(-limit)) {
-        const parsed = parseEml(join(dir, file))
-        if (parsed !== undefined) items.push(parsed)
-      }
-      return items.reverse()
+    if (this.config.mock === true) {
+      return this.listMockInbox(limit)
     }
+    if (!isMailConfigured(this.config)) {
+      throw new Error('未配置 IMAP 账户（请在邮箱设置中填写服务器、账号与密码）')
+    }
+    return this.listRealInbox(limit)
+  }
+
+  private listMockInbox(limit: number): MailSummary[] {
+    const dir = mockInbox(this.root)
+    if (!existsSync(dir)) return []
+    const files = readdirSync(dir).filter((name) => name.endsWith('.eml')).sort()
+    const items: MailSummary[] = []
+    for (const file of files.slice(-limit)) {
+      const parsed = parseEml(join(dir, file))
+      if (parsed !== undefined) items.push(parsed)
+    }
+    return items.reverse()
+  }
+
+  private async listRealInbox(limit: number): Promise<MailSummary[]> {
     const client = new ImapFlow({
       host: this.config.imapHost ?? '',
       port: this.config.imapPort ?? 993,
@@ -204,8 +223,11 @@ export class MailEngine {
     }
   }
 
-  /** Send a mail (mock: write .eml into the workspace outbox). */
+  /** Send a mail (explicit mock for tests; real SMTP otherwise). */
   async send(request: SendRequest): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+    if (this.config.mock !== true && !isMailConfigured(this.config)) {
+      return { ok: false, error: '未配置 SMTP（请在邮箱设置中填写服务器、账号与密码）' }
+    }
     const from = this.config.fromAddress ?? 'nas@localhost'
     const fromName = this.config.fromName ?? 'NAS'
     const messageId = `<${Date.now()}.${Math.random().toString(36).slice(2, 10)}@nas.local>`

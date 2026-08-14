@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { MailEngine, readMailConfig, writeMailConfig } from '../src/mail.ts'
+import { isMailConfigured, MailEngine, readMailConfig, writeMailConfig } from '../src/mail.ts'
 
 let tmp: string
 let root: string
@@ -54,18 +54,24 @@ describe('mock inbox', () => {
 })
 
 describe('config', () => {
-  it('defaults to mock when missing and round-trips writes', () => {
+  it('defaults to unconfigured when missing and round-trips writes', () => {
     const path = join(tmp, 'cfg.json')
-    expect(readMailConfig(path).mock).toBe(true)
-    writeMailConfig({ mock: false, smtpHost: 'smtp.example.com', smtpUser: 'u' }, path)
+    expect(readMailConfig(path)).toEqual({})
+    writeMailConfig({ mock: false, smtpHost: 'smtp.example.com', smtpUser: 'u', smtpPass: 'p' }, path)
     const loaded = readMailConfig(path)
-    expect(loaded.mock).toBe(false)
     expect(loaded.smtpHost).toBe('smtp.example.com')
+    expect(isMailConfigured(loaded)).toBe(true)
   })
 
   it('tolerates corrupt files', () => {
     const path = join(tmp, 'cfg.json')
     writeFileSync(path, '{broken')
-    expect(readMailConfig(path).mock).toBe(true)
+    expect(readMailConfig(path)).toEqual({})
+  })
+
+  it('reports unconfigured when only one side is filled', () => {
+    expect(isMailConfigured({ smtpHost: 'h', smtpUser: 'u', mock: false })).toBe(true)
+    expect(isMailConfigured({ smtpHost: 'h', mock: false })).toBe(false)
+    expect(isMailConfigured({})).toBe(false)
   })
 })

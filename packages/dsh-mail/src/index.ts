@@ -11,7 +11,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import { isAbsolute, join, resolve, sep } from 'node:path'
-import { MailEngine, readMailConfig, writeMailConfig, type MailConfig, type SendRequest } from './mail.ts'
+import { isMailConfigured, MailEngine, readMailConfig, writeMailConfig, type MailConfig, type SendRequest } from './mail.ts'
 
 /** Stable cordis plugin name. */
 export const name = 'dsh-mail'
@@ -170,7 +170,7 @@ export function apply(ctx: Context): void {
       json(res, 200, {
         ok: true,
         config: {
-          mock: config.mock !== false,
+          configured: isMailConfigured(config),
           smtpHost: config.smtpHost ?? '',
           smtpPort: config.smtpPort ?? 587,
           imapHost: config.imapHost ?? '',
@@ -189,7 +189,7 @@ export function apply(ctx: Context): void {
       }
       const existing = readMailConfig()
       const next: MailConfig = {
-        mock: read('mock') !== 'false',
+        mock: false,
         smtpHost: read('smtpHost') ?? existing.smtpHost,
         smtpPort: num('smtpPort') ?? existing.smtpPort,
         smtpUser: read('smtpUser') ?? existing.smtpUser,
@@ -206,8 +206,13 @@ export function apply(ctx: Context): void {
     }),
     route('inbox.list', async (body, res) => {
       const root = resolveRoot(sessionOf(body))
-      const items = await engineFor(root).listInbox(50)
-      json(res, 200, { ok: true, items, mock: readMailConfig().mock !== false })
+      const config = readMailConfig()
+      try {
+        const items = await engineFor(root).listInbox(50)
+        json(res, 200, { ok: true, items, configured: isMailConfigured(config) })
+      } catch (error) {
+        json(res, 200, { ok: false, items: [], configured: false, error: error instanceof Error ? error.message : String(error) })
+      }
     }),
     route('message.read', async (body, res) => {
       const uid = Number(str(body, 'uid'))

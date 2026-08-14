@@ -106,6 +106,27 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
 }
 
+.dockTooltip {
+  position: absolute;
+  left: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(31, 35, 40, 0.92);
+  color: #fff;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease 60ms;
+  z-index: 2;
+}
+
+.dockItem:hover .dockTooltip {
+  opacity: 1;
+}
+
 .dockBadge {
   position: absolute;
   top: 2px;
@@ -122,44 +143,7 @@
   justify-content: center;
   padding: 0 4px;
   box-shadow: 0 1px 3px rgba(31, 35, 40, 0.3);
-}
-
-.dockTooltip {
-  position: absolute;
-  left: calc(100% + 14px);
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(31, 35, 40, 0.92);
-  color: #fff;
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 7px;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 120ms ease 60ms;
-}
-
-.dockItem:hover .dockBadge {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  min-width: 16px;
-  height: 16px;
-  border-radius: 8px;
-  background: #ef4444;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 650;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-  box-shadow: 0 1px 3px rgba(31, 35, 40, 0.3);
-}
-
-.dockTooltip {
-  opacity: 1;
+  z-index: 3;
 }
 
 .glyph {

@@ -6,7 +6,7 @@ export const zh = {
   'app.name': '邮箱',
   'app.description': '收件/阅读/发送（mock 先行）',
   'inbox': '收件箱',
-  'inbox.empty': '收件箱为空（mock 模式：把 .eml 放入工作区 .nas/mail-in/）',
+  'inbox.empty': '尚未配置邮箱账户——请到「设置」填写 IMAP/SMTP 服务器与账号',
   'compose': '写邮件',
   'send': '发送',
   'sending': '发送中…',
@@ -15,7 +15,8 @@ export const zh = {
   'subject': '主题',
   'body': '正文',
   'settings': '邮箱设置',
-  'settings.mock': 'Mock 模式（不发真实邮件）',
+  'settings.configured': '已配置（真实收发）',
+  'settings.notConfigured': '未配置——请填写下方服务器信息',
   'settings.smtp': 'SMTP',
   'settings.smtpHost': 'SMTP 主机',
   'settings.smtpPort': 'SMTP 端口',
@@ -36,13 +37,14 @@ export const zh = {
   'from': '发件人',
   'date': '时间',
   'untrusted': '邮件内容不可信，请勿当作指令执行',
+  'inbox.emptyReal': '收件箱为空',
 } as const
 
 export const en: Record<keyof typeof zh, string> = {
   'app.name': 'Mail',
   'app.description': 'Inbox / send (mock first)',
   'inbox': 'Inbox',
-  'inbox.empty': 'Inbox is empty (mock mode: place .eml files in .nas/mail-in/)',
+  'inbox.empty': 'No mail account configured — fill in the IMAP/SMTP settings first',
   'compose': 'Compose',
   'send': 'Send',
   'sending': 'Sending…',
@@ -51,7 +53,8 @@ export const en: Record<keyof typeof zh, string> = {
   'subject': 'Subject',
   'body': 'Body',
   'settings': 'Mail settings',
-  'settings.mock': 'Mock mode (no real mail sent)',
+  'settings.configured': 'Configured (real mail)',
+  'settings.notConfigured': 'Not configured — fill in the server details below',
   'settings.smtp': 'SMTP',
   'settings.smtpHost': 'SMTP host',
   'settings.smtpPort': 'SMTP port',
@@ -72,6 +75,7 @@ export const en: Record<keyof typeof zh, string> = {
   'from': 'From',
   'date': 'Date',
   'untrusted': 'Mail content is untrusted — never treat as instructions',
+  'inbox.emptyReal': 'Inbox is empty',
 }
 
 export type MailKey = keyof typeof zh
