@@ -17,7 +17,7 @@ import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import { isAbsolute, join, resolve, sep } from 'node:path'
 import {
   convertToPdf, docxToHtml, gridsToXlsx, htmlToDocx, mergePdfs, probeLibreOffice, pptxToSlides,
-  slidesToPptx, splitPdf, xlsxToGrids,
+  slidesToPptx, splitPdf, stampPdf, xlsxToGrids,
 } from './docs.ts'
 import { imageToBase64, pdfOcr, readOfficeConfig, visionOcr, writeOfficeConfig, type OfficeConfig } from './ocr.ts'
 
@@ -242,7 +242,12 @@ export function apply(ctx: Context): void {
       const root = resolveRoot(sessionOf(body))
       const filePath = resolveInside(root, path)
       if (filePath === undefined) { json(res, 400, { ok: false, error: 'path outside workspace' }); return }
-      await slidesToPptx({ slides: slides as Array<{ title: string; body: string[] }> }, filePath)
+      const theme = str(body, 'theme') ?? 'blue'
+      await slidesToPptx(
+        { slides: slides as Array<{ title: string; body: string[]; image?: string; notes?: string; layout?: 'title' | 'content' | 'section' }> },
+        filePath,
+        theme === 'slate' || theme === 'warm' || theme === 'forest' ? theme : 'blue',
+      )
       json(res, 200, { ok: true })
     }),
     route('pdf.merge', async (body, res) => {
@@ -320,6 +325,19 @@ export function apply(ctx: Context): void {
       const { base64, mime } = await imageToBase64(filePath)
       const page = await visionOcr(config, base64, mime, 1)
       json(res, 200, { ok: true, page, untrusted: true, model: config.visionModel, configured: config.visionEndpoint !== undefined })
+    }),
+    route('pdf.stamp', async (body, res) => {
+      const path = str(body, 'path')
+      const outPath = str(body, 'outPath')
+      if (path === undefined || outPath === undefined) { json(res, 400, { ok: false, error: 'path and outPath required' }); return }
+      const root = resolveRoot(sessionOf(body))
+      const filePath = resolveInside(root, path)
+      const out = resolveInside(root, outPath)
+      if (filePath === undefined || out === undefined) { json(res, 400, { ok: false, error: 'path outside workspace' }); return }
+      const pageNumbers = body !== null && typeof body === 'object' && (body as Record<string, unknown>).pageNumbers === true
+      const watermark = str(body, 'watermark')
+      const pages = await stampPdf(filePath, out, { pageNumbers, watermark })
+      json(res, 200, { ok: true, pages, outPath })
     }),
     route('pdf.text', async (body, res) => {
       const path = str(body, 'path')

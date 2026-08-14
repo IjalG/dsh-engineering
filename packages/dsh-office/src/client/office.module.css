@@ -1014,3 +1014,25 @@
   width: 16px;
   display: inline-block;
 }
+
+.checkRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.recentWrap {
+  width: 100%;
+  max-width: 440px;
+  border: 1px solid rgba(31, 35, 40, 0.1);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+
+.recentWrap .fileRow {
+  padding: 5px 8px;
+  border-radius: 6px;
+}

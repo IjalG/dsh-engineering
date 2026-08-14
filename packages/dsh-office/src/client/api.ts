@@ -57,11 +57,12 @@ export class OfficeApi {
   pdfSplit(path: string): Promise<{ ok: boolean; files?: string[]; error?: string }> { return call('pdf.split', { path }) }
   convert(path: string): Promise<{ ok: boolean; outPath?: string; error?: string }> { return call('convert', { path }) }
   pptOpen(path: string): Promise<{ ok: boolean; slides: SlideText[]; error?: string }> { return call('ppt.open', { path }) }
-  pptSave(path: string, slides: SlideText[]): Promise<{ ok: boolean; error?: string }> { return call('ppt.save', { path, slides }) }
+  pptSave(path: string, slides: SlideText[], theme: string = 'blue'): Promise<{ ok: boolean; error?: string }> { return call('ppt.save', { path, slides, theme }) }
   pdfPages(path: string): Promise<{ ok: boolean; pages: Array<{ page: number; base64: string; mime: string }>; count?: number; error?: string }> { return call('pdf.pages', { path }) }
   ocrImage(path: string): Promise<OcrResult> { return call('ocr.image', { path }) }
   ocrPdf(path: string): Promise<{ ok: boolean; pages?: Array<{ page: number; text: string; method: string; error?: string }>; error?: string; untrusted?: boolean }> { return call('ocr.pdf', { path }) }
   pdfText(path: string): Promise<{ ok: boolean; text?: string; error?: string }> { return call('pdf.text', { path }) }
+  pdfStamp(path: string, outPath: string, pageNumbers: boolean, watermark: string): Promise<{ ok: boolean; pages?: number; error?: string }> { return call('pdf.stamp', { path, outPath, pageNumbers, watermark }) }
   configGet(): Promise<{ ok: boolean; config: { visionEndpoint: string; visionModel: string; visionConfigured: boolean } }> { return call('config.get') }
   configSet(visionEndpoint: string, visionKey: string, visionModel: string): Promise<{ ok: boolean; error?: string }> { return call('config.set', { visionEndpoint, visionKey, visionModel }) }
 }

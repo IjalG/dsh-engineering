@@ -28,6 +28,30 @@ export interface OfficeWindowProps {
   sessionId?: string
 }
 
+/** Recent files (localStorage, most recent first, capped). */
+const RECENT_KEY = 'dsh.office.recent'
+
+function loadRecent(): Array<{ path: string; name: string }> {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY)
+    const parsed = raw === null ? [] : (JSON.parse(raw) as unknown)
+    return Array.isArray(parsed) ? parsed.filter((item): item is { path: string; name: string } =>
+      typeof item === 'object' && item !== null && typeof (item as { path?: unknown }).path === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function rememberRecent(path: string): void {
+  const name = path.includes('/') ? path.slice(path.lastIndexOf('/') + 1) : path
+  const next = [{ path, name }, ...loadRecent().filter((item) => item.path !== path)].slice(0, 8)
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next))
+  } catch {
+    // best effort
+  }
+}
+
 const api = new OfficeApi()
 
 function extOf(path: string): string {
@@ -61,6 +85,7 @@ function Welcome({ t, onOpen }: { t: Translate<OfficeKey>; onOpen: (path: string
 export function OfficeWindow({ window, t, sessionId }: OfficeWindowProps): React.ReactElement {
   useEffect(() => { setOfficeSessionId(sessionId) }, [sessionId])
   const [currentPath, setCurrentPath] = useState<string | undefined>(window.path)
+  const [recent, setRecent] = useState<Array<{ path: string; name: string }>>(loadRecent())
   const [browse, setBrowse] = useState(false)
   const [browseDir, setBrowseDir] = useState('')
   const [entries, setEntries] = useState<Array<{ path: string; name: string; kind: 'file' | 'dir' }>>([])
@@ -91,6 +116,13 @@ export function OfficeWindow({ window, t, sessionId }: OfficeWindowProps): React
     return idx <= 0 ? '' : dir.slice(0, idx)
   }
 
+  const openPath = (path: string): void => {
+    rememberRecent(path)
+    setRecent(loadRecent())
+    setCurrentPath(path)
+    setBrowse(false)
+  }
+
   if (currentPath === undefined) {
     return (
       <div className={css.container}>
@@ -110,7 +142,7 @@ export function OfficeWindow({ window, t, sessionId }: OfficeWindowProps): React
                 className={css.fileRow}
                 onClick={() => {
                   if (entry.kind === 'dir') setBrowseDir(entry.path)
-                  else { setCurrentPath(entry.path); setBrowse(false) }
+                  else openPath(entry.path)
                 }}
               >
                 <span className={css.fileKind}>{entry.kind === 'dir' ? '▸ ' : ''}</span>
@@ -119,7 +151,18 @@ export function OfficeWindow({ window, t, sessionId }: OfficeWindowProps): React
             ))}
           </div>
         )}
-        <Welcome t={t} onOpen={setCurrentPath} />
+        {recent.length > 0 && (
+          <div className={css.recentWrap}>
+            <div className={css.sectionTitle}>{t('recent.title')}</div>
+            {recent.map((item) => (
+              <button key={item.path} type="button" className={css.fileRow} onClick={() => openPath(item.path)}>
+                <span className={css.fileKind} />
+                {item.name}
+              </button>
+            ))}
+          </div>
+        )}
+        <Welcome t={t} onOpen={openPath} />
       </div>
     )
   }

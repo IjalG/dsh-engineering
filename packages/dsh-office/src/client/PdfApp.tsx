@@ -24,6 +24,9 @@ export function PdfApp({ path, t }: PdfAppProps): React.ReactElement {
   const [ocrText, setOcrText] = useState('')
   const [pdfOcrBusy, setPdfOcrBusy] = useState(false)
   const [pdfText, setPdfText] = useState('')
+  const [pageNumbers, setPageNumbers] = useState(true)
+  const [watermark, setWatermark] = useState('')
+  const [stampOut, setStampOut] = useState('stamped.pdf')
   const [endpoint, setEndpoint] = useState('')
   const [model, setModel] = useState('')
   const [key, setKey] = useState('')
@@ -97,6 +100,12 @@ export function PdfApp({ path, t }: PdfAppProps): React.ReactElement {
     }
   }
 
+  const stamp = async (): Promise<void> => {
+    setMessage('')
+    const result = await api.pdfStamp(path, stampOut.trim() || 'stamped.pdf', pageNumbers, watermark.trim())
+    setMessage(result.ok ? `${t('pdf.done')}: ${result.pages ?? ''} pages -> ${stampOut}` : (result.error ?? ''))
+  }
+
   const saveConfig = async (): Promise<void> => {
     await api.configSet(endpoint.trim(), key.trim(), model.trim())
     setConfigured(endpoint.trim() !== '' && key.trim() !== '')
@@ -135,6 +144,15 @@ export function PdfApp({ path, t }: PdfAppProps): React.ReactElement {
         <div className={css.formRow}>
           <input className={css.input} placeholder={t('pdf.convertHint')} value={convertPath} onChange={(event) => setConvertPath(event.target.value)} />
           <button type="button" className={css.button} onClick={() => void convert()}>{t('pdf.convert')}</button>
+        </div>
+        <div className={css.formRow}>
+          <label className={css.checkRow}>
+            <input type="checkbox" checked={pageNumbers} onChange={(event) => setPageNumbers(event.target.checked)} />
+            {t('pdf.pageNumbers')}
+          </label>
+          <input className={[css.input, css.inputSmall].join(' ')} placeholder={t('pdf.watermarkPlaceholder')} value={watermark} onChange={(event) => setWatermark(event.target.value)} />
+          <input className={[css.input, css.inputSmall].join(' ')} placeholder={t('pdf.mergeOut')} value={stampOut} onChange={(event) => setStampOut(event.target.value)} />
+          <button type="button" className={css.button} onClick={() => void stamp()}>{t('pdf.stamp')}</button>
         </div>
       </div>
       <div className={css.section}>

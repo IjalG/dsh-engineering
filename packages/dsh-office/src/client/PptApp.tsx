@@ -28,6 +28,8 @@ export function PptApp({ path, t }: PptAppProps): React.ReactElement {
   const [slides, setSlides] = useState<SlideFull[]>([{ title: '', body: [] }])
   const [show, setShow] = useState(false)
   const [showIndex, setShowIndex] = useState(0)
+  const [theme, setTheme] = useState('blue')
+  const [layout, setLayout] = useState<'title' | 'content' | 'section'>('content')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [active, setActive] = useState(0)
   const [status, setStatus] = useState('')
@@ -57,8 +59,13 @@ export function PptApp({ path, t }: PptAppProps): React.ReactElement {
   }
 
   const addSlide = (): void => {
-    setSlides((prev) => [...prev, { title: '', body: [] }])
+    setSlides((prev) => [...prev, { title: '', body: [], layout }])
     setActive(slides.length)
+  }
+
+  const setSlideLayout = (kind: 'title' | 'content' | 'section'): void => {
+    setLayout(kind)
+    updateSlide(active, { layout: kind })
   }
 
   const removeSlide = (index: number): void => {
@@ -94,7 +101,7 @@ export function PptApp({ path, t }: PptAppProps): React.ReactElement {
   const save = async (): Promise<void> => {
     setStatus(t('editor.saving'))
     try {
-      const result = await api.pptSave(path, slides)
+      const result = await api.pptSave(path, slides, theme)
       if (!result.ok) { setError(result.error); setStatus('') }
       else { setStatus(t('editor.saved')); setTimeout(() => setStatus(''), 1500) }
     } catch (err) {
@@ -144,6 +151,17 @@ export function PptApp({ path, t }: PptAppProps): React.ReactElement {
         <span className={css.path}>{path}</span>
         <span className={css.spacer} />
         {status !== '' && <span className={css.status}>{status}</span>}
+        <select className={css.inputSmall} value={theme} onChange={(event) => setTheme(event.target.value)} title={t('ppt.theme')} style={{ flex: '0 0 auto' }}>
+          <option value="blue">{t('ppt.themeBlue')}</option>
+          <option value="slate">{t('ppt.themeSlate')}</option>
+          <option value="warm">{t('ppt.themeWarm')}</option>
+          <option value="forest">{t('ppt.themeForest')}</option>
+        </select>
+        <select className={css.inputSmall} value={layout} onChange={(event) => setSlideLayout(event.target.value as 'title' | 'content' | 'section')} title={t('ppt.layout')} style={{ flex: '0 0 auto' }}>
+          <option value="content">{t('ppt.layoutContent')}</option>
+          <option value="title">{t('ppt.layoutTitle')}</option>
+          <option value="section">{t('ppt.layoutSection')}</option>
+        </select>
         <button type="button" className={css.button} onClick={addSlide}>{t('ppt.addSlide')}</button>
         <button type="button" className={css.button} onClick={insertImage}>{t('ppt.addImage')}</button>
         <button type="button" className={css.button} onClick={startShow}>{t('ppt.slideshow')}</button>

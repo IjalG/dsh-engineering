@@ -143,3 +143,21 @@ describe('frozen rows', () => {
     expect(freezes[0]).toMatchObject({ sheet: 'S', rows: 1 })
   })
 })
+
+describe('pdf stamp', () => {
+  it('adds page numbers and a watermark', async () => {
+    const src = join(tmp, 'src.pdf')
+    const { PDFDocument } = await import('pdf-lib')
+    const doc = await PDFDocument.create()
+    doc.addPage([400, 400])
+    doc.addPage([400, 400])
+    const { writeFile } = await import('node:fs/promises')
+    await writeFile(src, await doc.save())
+    const out = join(tmp, 'stamped.pdf')
+    const { stampPdf } = await import('../src/docs.ts')
+    const pages = await stampPdf(src, out, { pageNumbers: true, watermark: '机密' })
+    expect(pages).toBe(2)
+    const stamped = await PDFDocument.load(await (await import('node:fs/promises')).readFile(out))
+    expect(stamped.getPageCount()).toBe(2)
+  })
+})

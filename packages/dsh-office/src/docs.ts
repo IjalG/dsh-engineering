@@ -13,7 +13,8 @@ import { promisify } from 'node:util'
 import mammoth from 'mammoth'
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, LevelFormat, AlignmentType, ImageRun, PageOrientation } from 'docx'
 import ExcelJS from 'exceljs'
-import { PDFDocument } from 'pdf-lib'
+import { PDFDocument, rgb, degrees } from 'pdf-lib'
+import fontkit from '@pdf-lib/fontkit'
 import PptxGenJS from 'pptxgenjs'
 import JSZip from 'jszip'
 
@@ -419,6 +420,23 @@ export interface SlideText {
   image?: string
   /** Optional speaker notes. */
   notes?: string
+  /** Layout kind: title slide, title+content, or title only. */
+  layout?: 'title' | 'content' | 'section'
+}
+
+/** Color themes (accent + background pair). */
+export interface DeckTheme {
+  id: 'blue' | 'slate' | 'warm' | 'forest'
+  accent: string
+  text: string
+  bg: string
+}
+
+export const DECK_THEMES: Record<DeckTheme['id'], DeckTheme> = {
+  blue: { id: 'blue', accent: '2563EB', text: '111827', bg: 'FFFFFF' },
+  slate: { id: 'slate', accent: '475569', text: '111827', bg: 'F8FAFC' },
+  warm: { id: 'warm', accent: 'EA580C', text: '1C1917', bg: 'FFFBEB' },
+  forest: { id: 'forest', accent: '047857', text: '064E3B', bg: 'ECFDF5' },
 }
 
 /** Presentation content (slides of title/body text). */
@@ -454,34 +472,55 @@ export async function pptxToSlides(filePath: string): Promise<PresentationText> 
 }
 
 /** slide texts -> pptx (title + body lines per slide). */
-export async function slidesToPptx(presentation: PresentationText, outPath: string): Promise<void> {
+export async function slidesToPptx(presentation: PresentationText, outPath: string, themeId: DeckTheme['id'] = 'blue'): Promise<void> {
+  const theme = DECK_THEMES[themeId] ?? DECK_THEMES.blue
   const pptx = new PptxGenJS()
   pptx.layout = 'LAYOUT_16x9'
   for (const slide of presentation.slides.slice(0, 40)) {
     const slideDef = pptx.addSlide()
-    if (slide.title !== '') {
-      slideDef.addText(slide.title, { x: 0.5, y: 0.4, w: 9, h: 0.9, fontSize: 28, bold: true, color: '1F2937' })
-    }
-    // Image (data URL) sits right of the text when present.
-    if (slide.image !== undefined && slide.image !== '') {
-      try {
-        const match = /^data:(image\/[\w.+-]+);base64,(.+)$/s.exec(slide.image)
-        if (match !== null) {
-          const mime = match[1]!.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
-          const data = `data:image/${mime};base64,${match[2]}`
-          slideDef.addImage({ data, x: 0.5, y: 1.5, w: 4.4, h: 3.3 })
+    const layout = slide.layout ?? 'content'
+    slideDef.background = { color: theme.bg }
+
+    if (layout === 'title') {
+      // Title slide: centered title with an accent bar and subtitle.
+      if (slide.title !== '') {
+        slideDef.addShape('rect', { x: 0, y: 0, w: 0.35, h: 5.63, fill: { color: theme.accent } })
+        slideDef.addText(slide.title, { x: 1.1, y: 1.9, w: 7.6, h: 1.4, fontSize: 40, bold: true, color: theme.text })
+      }
+      if (slide.body.length > 0) {
+        slideDef.addText(slide.body.slice(0, 3).join('\n'), { x: 1.15, y: 3.5, w: 7.4, h: 1.2, fontSize: 18, color: theme.accent, breakLine: true })
+      }
+    } else if (layout === 'section') {
+      // Section divider: accent background + centered title.
+      slideDef.background = { color: theme.accent }
+      if (slide.title !== '') {
+        slideDef.addText(slide.title, { x: 1, y: 2.3, w: 8, h: 1.2, fontSize: 34, bold: true, color: 'FFFFFF', align: 'center' })
+      }
+    } else {
+      // Title + content (default).
+      if (slide.title !== '') {
+        slideDef.addShape('rect', { x: 0.5, y: 0.62, w: 0.16, h: 0.66, fill: { color: theme.accent } })
+        slideDef.addText(slide.title, { x: 0.82, y: 0.4, w: 8.4, h: 1.0, fontSize: 26, bold: true, color: theme.text })
+      }
+      if (slide.image !== undefined && slide.image !== '') {
+        try {
+          const match = /^data:(image\/[\w.+-]+);base64,(.+)$/s.exec(slide.image)
+          if (match !== null) {
+            const mime = match[1]!.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
+            const data = `data:image/${mime};base64,${match[2]}`
+            slideDef.addImage({ data, x: 0.5, y: 1.7, w: 4.6, h: 3.4 })
+            if (slide.body.length > 0) {
+              slideDef.addText(slide.body.slice(0, 12).join('\n'), { x: 5.3, y: 1.7, w: 4.2, h: 4.2, fontSize: 15, color: theme.text, breakLine: true })
+            }
+          }
+        } catch {
           if (slide.body.length > 0) {
-            slideDef.addText(slide.body.slice(0, 12).join('\n'), { x: 5.1, y: 1.5, w: 4.4, h: 4.5, fontSize: 16, color: '374151', breakLine: true })
+            slideDef.addText(slide.body.slice(0, 12).join('\n'), { x: 0.82, y: 1.7, w: 8.4, h: 4.2, fontSize: 16, color: theme.text, breakLine: true })
           }
         }
-      } catch {
-        // bad image -> text only
-        if (slide.body.length > 0) {
-          slideDef.addText(slide.body.slice(0, 12).join('\n'), { x: 0.5, y: 1.5, w: 9, h: 4.5, fontSize: 16, color: '374151', breakLine: true })
-        }
+      } else if (slide.body.length > 0) {
+        slideDef.addText(slide.body.slice(0, 12).join('\n'), { x: 0.82, y: 1.7, w: 8.4, h: 4.2, fontSize: 16, color: theme.text, breakLine: true })
       }
-    } else if (slide.body.length > 0) {
-      slideDef.addText(slide.body.slice(0, 12).join('\n'), { x: 0.5, y: 1.5, w: 9, h: 4.5, fontSize: 16, color: '374151', breakLine: true })
     }
     if (slide.notes !== undefined && slide.notes !== '') {
       slideDef.addNotes(slide.notes)
@@ -521,6 +560,78 @@ export async function splitPdf(filePath: string, outDir: string, outName = 'page
   }
   return created
 }
+
+/** Candidate system CJK fonts (single-file TTF/OTF that fontkit can subset). */
+const CJK_FONT_PATHS = [
+  '/usr/share/fonts/truetype/fonts-japanese-gothic.ttf',
+  '/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf',
+  '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',
+  '/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf',
+]
+
+let cjkFontBytes: Uint8Array | undefined
+
+async function loadCjkFont(): Promise<Uint8Array | undefined> {
+  if (cjkFontBytes !== undefined) return cjkFontBytes
+  for (const path of CJK_FONT_PATHS) {
+    try {
+      const bytes = await readFile(path)
+      cjkFontBytes = new Uint8Array(bytes)
+      return cjkFontBytes
+    } catch {
+      // try next
+    }
+  }
+  return undefined
+}
+
+/** Stamp page numbers and an optional diagonal watermark onto a PDF. */
+export async function stampPdf(filePath: string, outPath: string, options: { pageNumbers?: boolean; watermark?: string }): Promise<number> {
+  const doc = await PDFDocument.load(await readFile(filePath))
+  doc.registerFontkit(fontkit)
+  const pages = doc.getPages()
+  const asciiFont = await doc.embedFont('Helvetica')
+  const wantWatermark = options.watermark !== undefined && options.watermark !== ''
+  let watermarkFont: Awaited<ReturnType<typeof doc.embedFont>> | undefined
+  if (wantWatermark) {
+    const bytes = await loadCjkFont()
+    if (bytes !== undefined) {
+      try {
+        watermarkFont = await doc.embedFont(bytes, { subset: true })
+      } catch {
+        watermarkFont = undefined
+      }
+    }
+  }
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i]!
+    const { width, height } = page.getSize()
+    if (options.pageNumbers === true) {
+      page.drawText(String(i + 1), { x: width / 2 - 8, y: 22, size: 11, font: asciiFont, color: rgb(0.35, 0.35, 0.35) })
+    }
+    if (wantWatermark) {
+      const text = options.watermark!.slice(0, 40)
+      const needsCjk = /[\u2e80-\u9fff\uf900-\ufaff\uff00-\uffef]/.test(text)
+      const font = needsCjk && watermarkFont !== undefined ? watermarkFont : asciiFont
+      if (needsCjk && watermarkFont === undefined) continue // no CJK font: skip watermark
+      page.drawText(text, {
+        x: width / 2 - text.length * 10,
+        y: height / 2,
+        size: 42,
+        font,
+        rotate: degrees(30),
+        opacity: 0.16,
+        color: rgb(0.2, 0.2, 0.2),
+      })
+    }
+  }
+  const bytes = await doc.save()
+  mkdirSync(dirname(outPath), { recursive: true })
+  await writeFile(outPath, bytes)
+  return pages.length
+}
+
+
 
 /** Extract text from a PDF (best effort via pdf-lib's text extraction). */
 export async function pdfText(filePath: string): Promise<string> {
