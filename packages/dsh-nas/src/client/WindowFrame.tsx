@@ -68,6 +68,10 @@ export function WindowFrame({ window, t }: WindowFrameProps): React.ReactElement
   const onPointerDown = (mode: DragMode) => (event: React.PointerEvent): void => {
     if (event.button !== 0) return
     event.preventDefault()
+    event.stopPropagation()
+    // Capture the pointer so move/up keep arriving at this element even when
+    // the cursor leaves it mid-drag (fixes the "flutter" while resizing).
+    event.currentTarget.setPointerCapture?.(event.pointerId)
     desktopStore.focusWindow(window.id)
     dragRef.current = { startX: event.clientX, startY: event.clientY, baseX: window.x, baseY: window.y, baseW: window.w, baseH: window.h }
     setDrag(mode)
@@ -122,7 +126,6 @@ export function WindowFrame({ window, t }: WindowFrameProps): React.ReactElement
         onPointerDown={onPointerDown('move')}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerLeave={onPointerUp}
       >
         <span className={css.windowDot} style={{ background: KIND_COLORS[window.kind] ?? '#3b82f6' }} aria-hidden="true" />
         <span className={css.windowTitle}>{window.title}</span>
@@ -150,14 +153,16 @@ export function WindowFrame({ window, t }: WindowFrameProps): React.ReactElement
       </div>
       {!window.maximized && (
         <>
-          <div className={[css.windowEdge, css.edgeN].join(' ')} style={{ cursor: EDGE_CURSOR.n }} onPointerDown={onPointerDown('n')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
-          <div className={[css.windowEdge, css.edgeS].join(' ')} style={{ cursor: EDGE_CURSOR.s }} onPointerDown={onPointerDown('s')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
-          <div className={[css.windowEdge, css.edgeE].join(' ')} style={{ cursor: EDGE_CURSOR.e }} onPointerDown={onPointerDown('e')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
-          <div className={[css.windowEdge, css.edgeW].join(' ')} style={{ cursor: EDGE_CURSOR.w }} onPointerDown={onPointerDown('w')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
-          <div className={[css.windowEdge, css.edgeNE].join(' ')} style={{ cursor: EDGE_CURSOR.ne }} onPointerDown={onPointerDown('ne')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
-          <div className={[css.windowEdge, css.edgeNW].join(' ')} style={{ cursor: EDGE_CURSOR.nw }} onPointerDown={onPointerDown('nw')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
-          <div className={[css.windowEdge, css.edgeSE].join(' ')} style={{ cursor: EDGE_CURSOR.se }} onPointerDown={onPointerDown('se')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
-          <div className={[css.windowEdge, css.edgeSW].join(' ')} style={{ cursor: EDGE_CURSOR.sw }} onPointerDown={onPointerDown('sw')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
+          {(['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'] as const).map((edge) => (
+            <div
+              key={edge}
+              className={[css.windowEdge, css[`edge${edge.toUpperCase()}`]].join(' ')}
+              style={{ cursor: EDGE_CURSOR[edge] }}
+              onPointerDown={onPointerDown(edge)}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+            />
+          ))}
         </>
       )}
     </div>

@@ -58,7 +58,9 @@ export class OfficeApi {
   convert(path: string): Promise<{ ok: boolean; outPath?: string; error?: string }> { return call('convert', { path }) }
   pptOpen(path: string): Promise<{ ok: boolean; slides: SlideText[]; error?: string }> { return call('ppt.open', { path }) }
   pptSave(path: string, slides: SlideText[]): Promise<{ ok: boolean; error?: string }> { return call('ppt.save', { path, slides }) }
+  pdfPages(path: string): Promise<{ ok: boolean; pages: Array<{ page: number; base64: string; mime: string }>; count?: number; error?: string }> { return call('pdf.pages', { path }) }
   ocrImage(path: string): Promise<OcrResult> { return call('ocr.image', { path }) }
+  ocrPdf(path: string): Promise<{ ok: boolean; pages?: Array<{ page: number; text: string; method: string; error?: string }>; error?: string; untrusted?: boolean }> { return call('ocr.pdf', { path }) }
   configGet(): Promise<{ ok: boolean; config: { visionEndpoint: string; visionModel: string; visionConfigured: boolean } }> { return call('config.get') }
   configSet(visionEndpoint: string, visionKey: string, visionModel: string): Promise<{ ok: boolean; error?: string }> { return call('config.set', { visionEndpoint, visionKey, visionModel }) }
 }

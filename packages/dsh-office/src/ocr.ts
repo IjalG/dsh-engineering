@@ -4,9 +4,13 @@
  * and never treated as instructions.
  */
 
-import { readFile, writeFile, mkdir, stat } from 'node:fs/promises'
+import { readFile, writeFile, mkdir, stat, readdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { chmodSync, existsSync } from 'node:fs'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+
+const execFileAsync = promisify(execFile)
 
 export interface OfficeConfig {
   /** OpenAI-compatible vision endpoint (e.g. https://api.openai.com/v1/chat/completions). */
@@ -121,6 +125,33 @@ export async function imageToBase64(filePath: string): Promise<{ base64: string;
   const ext = filePath.toLowerCase().split('.').pop() ?? 'png'
   const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : 'image/png'
   return { base64: buffer.toString('base64'), mime }
+}
+
+/** Render PDF pages to PNG via pdftoppm (poppler-utils). Returns image paths. */
+export async function pdfToImages(filePath: string, outDir: string, maxPages = 5, dpi = 150): Promise<string[]> {
+  await mkdir(outDir, { recursive: true })
+  await execFileAsync('pdftoppm', ['-png', '-r', String(dpi), '-f', '1', '-l', String(maxPages), filePath, join(outDir, 'page')], { timeout: 60_000 })
+  const names = (await readdir(outDir)).filter((name) => name.endsWith('.png')).sort()
+  return names.map((name) => join(outDir, name))
+}
+
+/** Multi-page PDF OCR: render pages, send each to the vision model. */
+export async function pdfOcr(config: OfficeConfig, filePath: string, outDir: string, maxPages = 5): Promise<OcrResult> {
+  if (config.visionEndpoint === undefined || config.visionKey === undefined || config.visionModel === undefined) {
+    return { ok: false, pages: [], error: 'vision endpoint not configured' }
+  }
+  try {
+    const images = await pdfToImages(filePath, outDir, maxPages)
+    const pages: OcrPage[] = []
+    for (let i = 0; i < images.length; i++) {
+      const { base64, mime } = await imageToBase64(images[i]!)
+      const page = await visionOcr(config, base64, mime, i + 1)
+      pages.push(page)
+    }
+    return { ok: true, pages, model: config.visionModel, provider: 'vision' }
+  } catch (error) {
+    return { ok: false, pages: [], error: error instanceof Error ? error.message : String(error) }
+  }
 }
 
 /** Stat helper for callers. */

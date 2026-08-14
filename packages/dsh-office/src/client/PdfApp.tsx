@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import type { OfficeKey } from './locales.ts'
 import { OfficeApi } from './api.ts'
+import { PdfViewer } from './PdfViewer.tsx'
 import css from './office.module.css'
 
 export interface PdfAppProps {
@@ -21,6 +22,7 @@ export function PdfApp({ path, t }: PdfAppProps): React.ReactElement {
   const [convertPath, setConvertPath] = useState(path)
   const [ocrPath, setOcrPath] = useState('')
   const [ocrText, setOcrText] = useState('')
+  const [pdfOcrBusy, setPdfOcrBusy] = useState(false)
   const [endpoint, setEndpoint] = useState('')
   const [model, setModel] = useState('')
   const [key, setKey] = useState('')
@@ -66,6 +68,24 @@ export function PdfApp({ path, t }: PdfAppProps): React.ReactElement {
     setOcrText(result.page.error !== undefined ? `${t('ocr.notConfigured')}: ${result.page.error}` : result.page.text)
   }
 
+  const ocrPdf = async (): Promise<void> => {
+    setPdfOcrBusy(true)
+    setOcrText('')
+    try {
+      const result = await api.ocrPdf(path)
+      if (!result.ok) { setOcrText(result.error ?? ''); return }
+      const parts = (result.pages ?? []).map((page) => {
+        const body = page.error !== undefined ? `第${page.page}页: ${page.error}` : `第${page.page}页:\n${page.text}`
+        return body
+      })
+      setOcrText(parts.join('\n\n') || t('ocr.notConfigured'))
+    } catch (err) {
+      setOcrText(err instanceof Error ? err.message : String(err))
+    } finally {
+      setPdfOcrBusy(false)
+    }
+  }
+
   const saveConfig = async (): Promise<void> => {
     await api.configSet(endpoint.trim(), key.trim(), model.trim())
     setConfigured(endpoint.trim() !== '' && key.trim() !== '')
@@ -77,7 +97,11 @@ export function PdfApp({ path, t }: PdfAppProps): React.ReactElement {
       <div className={css.toolbar}>
         <span className={css.path}>{path}</span>
         <span className={css.spacer} />
+        <button type="button" className={css.button} disabled={pdfOcrBusy} onClick={() => void ocrPdf()}>{t('pdf.ocrPages')}</button>
         {message !== '' && <span className={css.status}>{message}</span>}
+      </div>
+      <div className={css.pdfView}>
+        <PdfViewer path={path} t={t} />
       </div>
       <div className={css.section}>
         <div className={css.sectionTitle}>{t('pdf.title')}</div>

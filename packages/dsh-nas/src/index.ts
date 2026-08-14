@@ -83,10 +83,24 @@ function makeRootResolver(ctx: Context): RootResolver {
         // fall through
       }
     }
+    // No session context: prefer the first registered workspace (a real
+    // project dir) over the process-wide sandbox root, which can be $HOME.
+    try {
+      const registry = ctx.get('workspaceRegistry')
+      const first = registry?.list()[0] as { path?: unknown } | undefined
+      const firstPath = first?.path
+      if (typeof firstPath === 'string' && firstPath.length > 0) return firstPath
+    } catch {
+      // fall through
+    }
     try {
       const policy = ctx.get('sandboxPolicy')
       const workspaceRoot = policy?.workspaceRoot
-      if (typeof workspaceRoot === 'string' && workspaceRoot.length > 0) return workspaceRoot
+      const home = process.env.HOME ?? process.env.USERPROFILE
+      if (typeof workspaceRoot === 'string' && workspaceRoot.length > 0
+        && workspaceRoot !== home && !workspaceRoot.startsWith(`${home}/`)) {
+        return workspaceRoot
+      }
     } catch {
       // fall through
     }

@@ -11,7 +11,7 @@ import { mkdirSync } from 'node:fs'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import mammoth from 'mammoth'
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType } from 'docx'
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, LevelFormat, AlignmentType } from 'docx'
 import ExcelJS from 'exceljs'
 import { PDFDocument } from 'pdf-lib'
 import PptxGenJS from 'pptxgenjs'
@@ -61,7 +61,22 @@ export async function docxToHtml(filePath: string): Promise<WordHtml> {
 export async function htmlToDocx(html: string, outPath: string): Promise<void> {
   const paragraphs = parseHtmlToBlocks(html)
   const children = blocksToDocx(paragraphs)
-  const doc = new Document({ sections: [{ children }] })
+  const doc = new Document({
+    numbering: {
+      config: [
+        {
+          reference: 'ordered-list',
+          levels: Array.from({ length: 9 }, (_, level) => ({
+            level,
+            format: LevelFormat.DECIMAL,
+            text: '%1.',
+            alignment: AlignmentType.START,
+          })),
+        },
+      ],
+    },
+    sections: [{ children }],
+  })
   const buffer = await Packer.toBuffer(doc)
   mkdirSync(dirname(outPath), { recursive: true })
   await writeFile(outPath, buffer)
@@ -188,8 +203,16 @@ function blocksToDocx(blocks: HtmlBlock[]): Array<Paragraph | Table> {
   const flushList = (): void => {
     if (listItems.length === 0) return
     for (const item of listItems) {
-      const bullet = item.ordered ? `${item.level}.` : '•'
-      children.push(new Paragraph({ text: `${bullet} ${item.text}`, indent: { left: 360 * item.level } }))
+      // Real Word list item (numbering/bullet definition), not a text prefix —
+      // mammoth then reads it back as <ul>/<ol><li>.
+      children.push(new Paragraph({
+        children: [new TextRun({ text: item.text })],
+        bullet: { level: Math.max(0, Math.min(8, item.level - 1)) },
+        numbering: item.ordered
+          ? { reference: 'ordered-list', level: Math.max(0, Math.min(8, item.level - 1)) }
+          : undefined,
+        indent: item.ordered ? undefined : { left: 360 * Math.min(8, item.level) },
+      }))
     }
     listItems = []
   }

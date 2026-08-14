@@ -19,7 +19,7 @@ import {
   convertToPdf, docxToHtml, gridsToXlsx, htmlToDocx, mergePdfs, probeLibreOffice, pptxToSlides,
   slidesToPptx, splitPdf, xlsxToGrids,
 } from './docs.ts'
-import { imageToBase64, readOfficeConfig, visionOcr, writeOfficeConfig, type OfficeConfig } from './ocr.ts'
+import { imageToBase64, pdfOcr, readOfficeConfig, visionOcr, writeOfficeConfig, type OfficeConfig } from './ocr.ts'
 
 /** Stable cordis plugin name. */
 export const name = 'dsh-office'
@@ -279,6 +279,28 @@ export function apply(ctx: Context): void {
       const out = await convertToPdf(filePath, outDir)
       json(res, 200, { ok: true, outPath: out.slice(root.length + 1) })
     }),
+    route('pdf.pages', async (body, res) => {
+      const path = str(body, 'path')
+      if (path === undefined) { json(res, 400, { ok: false, error: 'path required' }); return }
+      const dpi = body !== null && typeof body === 'object' && typeof (body as Record<string, unknown>).dpi === 'number'
+        ? Math.max(60, Math.min(220, (body as Record<string, unknown>).dpi as number)) : 110
+      const root = resolveRoot(sessionOf(body))
+      const filePath = resolveInside(root, path)
+      if (filePath === undefined) { json(res, 400, { ok: false, error: 'path outside workspace' }); return }
+      const base = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : ''
+      const outRel = `${base}.nas-pdf-view`
+      const outDir = resolveInside(root, outRel)
+      if (outDir === undefined) { json(res, 400, { ok: false, error: 'output outside workspace' }); return }
+      const { pdfToImages } = await import('./ocr.ts')
+      const images = await pdfToImages(filePath, outDir, 24, dpi)
+      const pages = []
+      for (const image of images) {
+        const { imageToBase64 } = await import('./ocr.ts')
+        const { base64, mime } = await imageToBase64(image)
+        pages.push({ page: pages.length + 1, base64, mime })
+      }
+      json(res, 200, { ok: true, pages, count: pages.length })
+    }),
     route('ocr.image', async (body, res) => {
       const path = str(body, 'path')
       if (path === undefined) { json(res, 400, { ok: false, error: 'path required' }); return }
@@ -289,6 +311,20 @@ export function apply(ctx: Context): void {
       const { base64, mime } = await imageToBase64(filePath)
       const page = await visionOcr(config, base64, mime, 1)
       json(res, 200, { ok: true, page, untrusted: true, model: config.visionModel, configured: config.visionEndpoint !== undefined })
+    }),
+    route('ocr.pdf', async (body, res) => {
+      const path = str(body, 'path')
+      if (path === undefined) { json(res, 400, { ok: false, error: 'path required' }); return }
+      const root = resolveRoot(sessionOf(body))
+      const filePath = resolveInside(root, path)
+      if (filePath === undefined) { json(res, 400, { ok: false, error: 'path outside workspace' }); return }
+      const base = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : ''
+      const outRel = `${base}.nas-ocr`
+      const outDir = resolveInside(root, outRel)
+      if (outDir === undefined) { json(res, 400, { ok: false, error: 'output outside workspace' }); return }
+      const config = await readOfficeConfig()
+      const result = await pdfOcr(config, filePath, outDir, 5)
+      json(res, 200, { ...result, untrusted: true, model: config.visionModel })
     }),
     route('config.get', async (_body, res) => {
       const config = await readOfficeConfig()

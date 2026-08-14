@@ -1,11 +1,14 @@
 /**
- * Word app: TipTap rich-text editor bound to a .docx file. Open converts the
- * docx to HTML (host mammoth); save converts HTML back to docx (host docx).
+ * Word app: TipTap rich-text editor bound to a .docx file with a formatting
+ * toolbar (headings, bold/italic/underline/strike, lists, quote, rule,
+ * undo/redo). Open converts docx to HTML (host mammoth); save converts HTML
+ * back to docx (host docx).
  */
 
 import React, { useCallback, useEffect, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import type { OfficeKey } from './locales.ts'
 import { OfficeApi } from './api.ts'
@@ -18,13 +21,32 @@ export interface WordAppProps {
 
 const api = new OfficeApi()
 
+/** One toolbar button. */
+function ToolButton({ label, title, active, disabled, onClick }: {
+  label: string; title: string; active?: boolean; disabled?: boolean; onClick: () => void
+}): React.ReactElement {
+  return (
+    <button
+      type="button"
+      className={[css.toolButton, active === true ? css.toolButtonActive : ''].join(' ')}
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  )
+}
+
 export function WordApp({ path, t }: WordAppProps): React.ReactElement {
-  const [status, setStatus] = useState<string>('')
+  const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | undefined>()
 
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [StarterKit, Underline],
     content: '<p></p>',
     editorProps: {
       attributes: {
@@ -63,18 +85,35 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
     }
   }
 
+  const disabled = editor === null
+
   return (
     <div className={css.container}>
       <div className={css.toolbar}>
         <span className={css.path}>{path}</span>
         <span className={css.spacer} />
         {status !== '' && <span className={css.status}>{status}</span>}
-        <button type="button" className={css.button} onClick={() => void save()} disabled={editor === null}>
+        <button type="button" className={css.button} onClick={() => void save()} disabled={disabled}>
           {t('editor.save')}
         </button>
-        <button type="button" className={css.button} onClick={() => void load()} disabled={editor === null}>
-          {t('common.ok')}
-        </button>
+      </div>
+      <div className={css.formatBar}>
+        <ToolButton label={t('word.h1')} title={t('word.h1')} active={editor?.isActive('heading', { level: 1 })} disabled={disabled} onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} />
+        <ToolButton label={t('word.h2')} title={t('word.h2')} active={editor?.isActive('heading', { level: 2 })} disabled={disabled} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} />
+        <ToolButton label={t('word.h3')} title={t('word.h3')} active={editor?.isActive('heading', { level: 3 })} disabled={disabled} onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()} />
+        <span className={css.barSeparator} />
+        <ToolButton label={t('word.bold')} title={t('word.bold')} active={editor?.isActive('bold')} disabled={disabled} onClick={() => editor?.chain().focus().toggleBold().run()} />
+        <ToolButton label={t('word.italic')} title={t('word.italic')} active={editor?.isActive('italic')} disabled={disabled} onClick={() => editor?.chain().focus().toggleItalic().run()} />
+        <ToolButton label={t('word.underline')} title={t('word.underline')} active={editor?.isActive('underline')} disabled={disabled} onClick={() => editor?.chain().focus().toggleUnderline().run()} />
+        <ToolButton label={t('word.strike')} title={t('word.strike')} active={editor?.isActive('strike')} disabled={disabled} onClick={() => editor?.chain().focus().toggleStrike().run()} />
+        <span className={css.barSeparator} />
+        <ToolButton label={t('word.bullet')} title={t('word.bullet')} active={editor?.isActive('bulletList')} disabled={disabled} onClick={() => editor?.chain().focus().toggleBulletList().run()} />
+        <ToolButton label={t('word.ordered')} title={t('word.ordered')} active={editor?.isActive('orderedList')} disabled={disabled} onClick={() => editor?.chain().focus().toggleOrderedList().run()} />
+        <ToolButton label={t('word.quote')} title={t('word.quote')} active={editor?.isActive('blockquote')} disabled={disabled} onClick={() => editor?.chain().focus().toggleBlockquote().run()} />
+        <ToolButton label={t('word.rule')} title={t('word.rule')} disabled={disabled} onClick={() => editor?.chain().focus().setHorizontalRule().run()} />
+        <span className={css.barSeparator} />
+        <ToolButton label={t('word.undo')} title={t('word.undo')} disabled={disabled || !editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()} />
+        <ToolButton label={t('word.redo')} title={t('word.redo')} disabled={disabled || !editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()} />
       </div>
       {error !== undefined && <div className={css.error}>{error}</div>}
       {loading && <div className={css.hint}>{t('editor.saving')}</div>}
