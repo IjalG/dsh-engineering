@@ -50,6 +50,28 @@ function useRightInset(): number {
   return inset
 }
 
+/** Width of the DSH sidebar column (0 when not measurable). */
+function sidebarWidth(): number {
+  const el = document.querySelector<HTMLElement>('[data-pane="sidebar"]')
+  if (el === null) return 0
+  const rect = el.getBoundingClientRect()
+  return rect.width > 4 ? rect.width : 0
+}
+
+/** Live sidebar width: the dock docks right of the DSH sidebar. */
+function useSidebarWidth(): number {
+  const [width, setWidth] = useState(0)
+  useEffect(() => {
+    const measure = (): void => setWidth(sidebarWidth())
+    measure()
+    const observer = new MutationObserver(measure)
+    observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['style', 'class'] })
+    window.addEventListener('resize', measure)
+    return () => { observer.disconnect(); window.removeEventListener('resize', measure) }
+  }, [])
+  return width
+}
+
 function useHandleY(): [number, (y: number) => void] {
   const [y, setY] = useState<number>(() => {
     try {
@@ -314,13 +336,14 @@ function ShowApplications({ apps, t, onClose }: { apps: NasAppMeta[]; t: Transla
 
 function DockDesktop({ snapshot, t }: { snapshot: DesktopSnapshot; t: Translate<NasKey> }): React.ReactElement {
   const inset = useRightInset()
+  const sidebarW = useSidebarWidth()
   const [showApps, setShowApps] = useState(false)
   const apps = [...systemApps(t), ...snapshot.apps]
   const runningKinds = new Set(snapshot.windows.map((window) => window.kind))
 
   return (
     <div className={[css.desktop, css.dockDesktop].join(' ')} data-nas-desktop="panel">
-      <div className={css.dock}>
+      <div className={css.dock} style={{ left: sidebarW + 10 }}>
         <button type="button" className={css.dockItem} onClick={() => setShowApps((open) => !open)} aria-label={t('taskbar.open')} title={t('taskbar.open')}>
           <span className={css.glyph} style={{ color: ICONS.grid!.color }} dangerouslySetInnerHTML={{ __html: ICONS.grid!.svg }} />
           <span className={css.dockTooltip}>{t('taskbar.open')}</span>
@@ -337,7 +360,7 @@ function DockDesktop({ snapshot, t }: { snapshot: DesktopSnapshot; t: Translate<
           <span className={css.dockTooltip}>{t('desktop.close')}</span>
         </button>
       </div>
-      <WindowLayer snapshot={snapshot} t={t} left={DOCK_WIDTH} right={inset} />
+      <WindowLayer snapshot={snapshot} t={t} left={sidebarW + DOCK_WIDTH} right={inset} />
       {showApps && <ShowApplications apps={apps} t={t} onClose={() => setShowApps(false)} />}
     </div>
   )

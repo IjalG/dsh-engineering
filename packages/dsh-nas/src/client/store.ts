@@ -105,9 +105,11 @@ class DesktopStore {
     const panel = this.state.mode === 'panel'
     // Panel mode: the left dock (76px) and the right aionui inset leave the
     // window layer in the middle; size windows to that region.
-    const w = panel ? Math.round((viewportW - 96) * 0.78) : Math.round(viewportW * 0.62)
+    const w = panel ? Math.round((viewportW - 160) * 0.74) : Math.round(viewportW * 0.62)
     const h = panel ? Math.round(viewportH * 0.74) : Math.round(viewportH * 0.72)
-    const x = panel ? Math.max(96, Math.round(76 + (viewportW - 76 - w) / 2)) : Math.round((viewportW - w) / 2)
+    // Panel mode: the left sidebar + dock occupy the left edge; start windows
+    // in the middle so they never land under the dock.
+    const x = panel ? Math.max(170, Math.round(160 + (viewportW - 160 - w) / 2)) : Math.round((viewportW - w) / 2)
     const y = panel ? 40 : Math.round((viewportH - h) / 2)
     return { x, y, w, h }
   }
