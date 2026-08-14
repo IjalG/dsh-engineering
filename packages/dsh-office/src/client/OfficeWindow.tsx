@@ -145,7 +145,7 @@ export function OfficeWindow({ window, t, sessionId }: OfficeWindowProps): React
                   else openPath(entry.path)
                 }}
               >
-                <span className={css.fileKind}>{entry.kind === 'dir' ? '▸ ' : ''}</span>
+                <span className={css.fileKind}>{entry.kind === 'dir' ? '> ' : ''}</span>
                 {entry.name}
               </button>
             ))}
