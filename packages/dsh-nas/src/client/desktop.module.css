@@ -17,132 +17,215 @@
   overflow: hidden;
 }
 
-.desktopPanel {
-  top: 0;
-  bottom: 0;
-  right: 0;
-  width: min(768px, 100vw);
-  background: rgba(248, 250, 252, 0.97);
-  border-left: 1px solid rgba(31, 35, 40, 0.12);
-  display: flex;
-  flex-direction: column;
-  box-shadow: -2px 0 12px rgba(31, 35, 40, 0.08);
+/* ---- left dock (embedded mode) ---- */
+
+.dockDesktop {
+  inset: 0;
+  background: transparent;
+  overflow: hidden;
 }
 
-/* collapse handle at the panel's left edge (dock side) */
-.panelHandle {
+.dock {
   position: absolute;
-  left: -26px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 26px;
-  height: 64px;
-  border: 1px solid rgba(31, 35, 40, 0.14);
-  border-right: none;
-  background: rgba(248, 250, 252, 0.95);
-  border-radius: 8px 0 0 8px;
-  cursor: pointer;
+  top: 12px;
+  bottom: 12px;
+  left: 12px;
+  width: 64px;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 6px;
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(31, 35, 40, 0.14);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(31, 35, 40, 0.12);
+}
+
+.dockButton {
+  width: 48px;
+  height: 48px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.dockButton:hover {
+  background: rgba(31, 35, 40, 0.08);
+}
+
+.dockButtonTop {
+  color: #3b82f6;
+}
+
+.dockGlyph {
+  display: inline-flex;
+}
+
+.dockSeparator {
+  width: 32px;
+  height: 1px;
+  background: rgba(31, 35, 40, 0.15);
+  margin: 2px 0;
+}
+
+.dockSpacer {
+  flex: 1;
+}
+
+/* ---- show applications grid ---- */
+
+.showApps {
+  position: absolute;
+  inset: 0;
+  background: rgba(31, 35, 40, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9500;
+  backdrop-filter: blur(2px);
+}
+
+.showAppsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 14px;
+  max-width: 720px;
+  width: 90%;
+  max-height: 80vh;
+  overflow: auto;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(31, 35, 40, 0.25);
+}
+
+.showApp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  padding: 14px 6px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.showApp:hover {
+  background: rgba(31, 35, 40, 0.06);
+}
+
+.showAppGlyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #f1f5f9;
+  border: 1px solid rgba(31, 35, 40, 0.1);
+  color: #3b82f6;
+}
+
+.showAppName {
+  font-size: 12px;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- fullscreen header (restore affordance) ---- */
+
+.fullHeader {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  z-index: 9400;
+  pointer-events: none;
+}
+
+.fullTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(31, 35, 40, 0.75);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.fullRestore {
+  pointer-events: auto;
+  width: 34px;
+  height: 30px;
+  border: 1px solid rgba(31, 35, 40, 0.18);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  cursor: pointer;
+  color: inherit;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.panelHandle:hover {
+.fullRestore:hover {
   background: #fff;
 }
 
-.panelHandleGlyph {
-  width: 6px;
-  height: 22px;
-  border-radius: 3px;
-  background: rgba(31, 35, 40, 0.35);
-}
+/* ---- desktop icons ---- */
 
-/* right-edge dock handle shown while the desktop is closed */
-.dockHandle {
-  position: fixed;
-  right: 0;
-  transform: translateY(-50%);
-  z-index: 8900;
-  display: flex;
+.dockIcon {
+  display: inline-flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  width: 46px;
-  padding: 10px 4px;
-  border: 1px solid rgba(31, 35, 40, 0.14);
-  border-right: none;
-  background: rgba(248, 250, 252, 0.95);
-  border-radius: 10px 0 0 10px;
-  cursor: grab;
-  color: inherit;
-  box-shadow: -2px 0 8px rgba(31, 35, 40, 0.08);
-  touch-action: none;
-  user-select: none;
-}
-
-.dockHandleDragging {
-  cursor: grabbing;
-}
-
-.dockHandle:hover {
-  background: #fff;
-}
-
-.dockHandleGlyph {
-  display: inline-flex;
-  color: #3b82f6;
-}
-
-.dockHandleLabel {
-  font-size: 11px;
-  writing-mode: vertical-rl;
-  letter-spacing: 0.08em;
-  color: rgba(31, 35, 40, 0.75);
-}
-
-.panelHeader {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-bottom: 1px solid rgba(31, 35, 40, 0.1);
-}
-
-.panelTitle {
-  font-weight: 600;
-  font-size: 13px;
-}
-
-.panelButton {
-  border: 1px solid rgba(31, 35, 40, 0.18);
-  background: #fff;
-  border-radius: 6px;
-  padding: 3px 8px;
-  font-size: 12px;
+  gap: 5px;
+  width: 96px;
+  padding: 8px 4px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
   cursor: pointer;
   color: inherit;
 }
 
-.panelButton:hover {
-  background: #f0f4f8;
+.dockIcon:hover {
+  background: rgba(31, 35, 40, 0.06);
 }
 
-.panelRail {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-  padding: 10px 8px;
-  border-bottom: 1px solid rgba(31, 35, 40, 0.1);
+.dockIconGlyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(31, 35, 40, 0.14);
+  color: #3b82f6;
+  box-shadow: 0 2px 6px rgba(31, 35, 40, 0.08);
 }
 
-.panelWindows {
-  flex: 1;
-  position: relative;
-  overflow: visible;
+.dockIconLabel {
+  font-size: 12px;
+  max-width: 92px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* ---- desktop icons ---- */
+
 
 .desktopGrid {
   position: absolute;
@@ -764,4 +847,81 @@
   .desktopIcon {
     width: 76px;
   }
+}
+
+/* ---- search + scheduler ---- */
+
+.searchSnippet {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  color: rgba(31, 35, 40, 0.6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedCreate {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(31, 35, 40, 0.08);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.schedTarget {
+  flex: 1;
+  min-width: 120px;
+}
+
+.schedDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(31, 35, 40, 0.25);
+  flex-shrink: 0;
+}
+
+.schedDotOn {
+  background: #22c55e;
+}
+
+.schedNotify {
+  border-top: 1px solid rgba(31, 35, 40, 0.1);
+  flex: 1;
+  min-height: 120px;
+  overflow: auto;
+  padding: 4px 6px;
+}
+
+.schedNotifyHeader {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 8px;
+  color: rgba(31, 35, 40, 0.8);
+}
+
+.schedStatus {
+  font-size: 11px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.schedStatus.is-succeeded {
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+}
+
+.schedStatus.is-failed,
+.schedStatus.is-uncertain {
+  background: rgba(229, 72, 77, 0.12);
+  color: #b91c1c;
+}
+
+.schedStatus.is-pending,
+.schedStatus.is-sending {
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
 }

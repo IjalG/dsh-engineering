@@ -70,11 +70,20 @@ function entryOf(root: string, path: string): NasFsEntry | undefined {
   }
 }
 
+/** Change hook signature (index maintenance). */
+export type FsChangeHook = (root: string, rel: string, op: 'write' | 'mkdir' | 'move' | 'copy' | 'delete') => void
+
 /** File system facade. */
 export class FsApi {
   constructor(
     private readonly resolveRoot: RootResolver,
+    private readonly onChange?: FsChangeHook,
   ) {}
+
+  /** Resolve the workspace root for a session (public for M2 routes). */
+  rootFor(sessionId?: string): string {
+    return this.resolveRoot(sessionId)
+  }
 
   /** Trash bound to a root (cheap: index is a small JSON read). */
   private trashFor(root: string): Trash {
@@ -126,6 +135,7 @@ export class FsApi {
       mkdirSync(dirname(path), { recursive: true })
       writeFileSync(path, content, 'utf8')
       audit(root, { ts: Date.now(), op: 'write', path: rel, size: Buffer.byteLength(content, 'utf8'), ok: true })
+      this.onChange?.(root, rel, 'write')
       return { ok: true }
     } catch (error) {
       return { ok: false, error: errorMessage(error) }
@@ -140,6 +150,7 @@ export class FsApi {
     try {
       mkdirSync(path, { recursive: true })
       audit(root, { ts: Date.now(), op: 'mkdir', path: rel, ok: true })
+      this.onChange?.(root, rel, 'mkdir')
       return { ok: true }
     } catch (error) {
       return { ok: false, error: errorMessage(error) }
@@ -159,6 +170,7 @@ export class FsApi {
       mkdirSync(dirname(to), { recursive: true })
       renameSync(from, to)
       audit(root, { ts: Date.now(), op: 'move', path: src, to: dest, ok: true })
+      this.onChange?.(root, src, 'move')
       return { ok: true }
     } catch (error) {
       return { ok: false, error: errorMessage(error) }
@@ -178,6 +190,7 @@ export class FsApi {
       mkdirSync(dirname(to), { recursive: true })
       cpSync(from, to, { recursive: true })
       audit(root, { ts: Date.now(), op: 'copy', path: src, to: dest, ok: true })
+      this.onChange?.(root, dest, 'copy')
       return { ok: true }
     } catch (error) {
       return { ok: false, error: errorMessage(error) }
@@ -194,6 +207,7 @@ export class FsApi {
       const kind = isDir(path) ? 'dir' : 'file'
       this.trashFor(root).stash(path, rel, kind)
       audit(root, { ts: Date.now(), op: 'delete', path: rel, ok: true })
+      this.onChange?.(root, rel, 'delete')
       return { ok: true }
     } catch (error) {
       return { ok: false, error: errorMessage(error) }

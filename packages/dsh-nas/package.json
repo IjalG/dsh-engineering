@@ -27,7 +27,10 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "dependencies": {},
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "node-cron": "^3.0.3"
+  },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-host-webserver": "^0.1.0-rc.6",
@@ -52,7 +55,9 @@
     "typescript": "~5.7.2",
     "vitest": "^3.0.0",
     "@deepseek-ai/dsh-system-prompt": "^0.1.0-rc.6",
-    "schemastery": "^3.18.0"
+    "schemastery": "^3.18.0",
+    "@types/node-cron": "^3.0.11",
+    "@types/better-sqlite3": "^7.6.11"
   },
   "license": "BSD-3-Clause"
 }

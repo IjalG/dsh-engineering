@@ -87,6 +87,12 @@ export interface NasRouteContext {
   getConfig: () => { enabled?: boolean; announceToAgent?: boolean }
   /** Persist a config patch through the settings service. */
   updateConfig: (patch: Record<string, unknown>) => Promise<{ ok: boolean; error?: string }>
+  /** Full-text search bound to a workspace root (lazy). */
+  searchFor: (root: string) => import('./search.ts').SearchIndex
+  /** Scheduler bound to a workspace root (lazy, rebuilt on root change). */
+  scheduleFor: (root: string) => import('./scheduler.ts').TaskScheduler
+  /** Notifier bound to a workspace root (lazy). */
+  notifyFor: (root: string) => import('./notify.ts').Notifier
 }
 
 /** One route factory: exact path, loopback fence, JSON body, JSON reply. */
@@ -209,6 +215,89 @@ export function dataRoutes(ctx: NasRouteContext): WebRoute[] {
       if (typeof prefs !== 'object' || prefs === null) { json(res, 400, fail('prefs required')); return }
       ctx.setPrefs(prefs)
       json(res, 200, ok())
+    }),
+    // ---- search ----
+    handle('search.query', (body, res) => {
+      const query = str(body, 'query') ?? ''
+      const limit = typeof body === 'object' && body !== null && typeof (body as Record<string, unknown>).limit === 'number'
+        ? Math.min(200, (body as Record<string, unknown>).limit as number) : 50
+      const root = ctx.fs.rootFor(sessionOf(body))
+      json(res, 200, { ok: true, hits: ctx.searchFor(root).query(query, limit) })
+    }),
+    // ---- schedules ----
+    handle('schedule.list', (body, res) => {
+      const root = ctx.fs.rootFor(sessionOf(body))
+      json(res, 200, { ok: true, tasks: ctx.scheduleFor(root).list() })
+    }),
+    handle('schedule.create', (body, res) => {
+      const name = str(body, 'name') ?? 'task'
+      const cron = str(body, 'cron') ?? ''
+      const actionType = str(body, 'actionType') ?? 'log'
+      const actionTarget = str(body, 'actionTarget') ?? ''
+      const root = ctx.fs.rootFor(sessionOf(body))
+      try {
+        const task = ctx.scheduleFor(root).create(name, cron, actionType, actionTarget)
+        json(res, 200, { ok: true, task })
+      } catch (error) {
+        json(res, 400, fail(error instanceof Error ? error.message : String(error)))
+      }
+    }),
+    handle('schedule.remove', (body, res) => {
+      const id = Number(str(body, 'id'))
+      const root = ctx.fs.rootFor(sessionOf(body))
+      json(res, 200, ctx.scheduleFor(root).remove(id) ? ok() : fail('task not found'))
+    }),
+    handle('schedule.toggle', (body, res) => {
+      const id = Number(str(body, 'id'))
+      const enabled = body !== null && typeof body === 'object' && (body as Record<string, unknown>).enabled === true
+      const root = ctx.fs.rootFor(sessionOf(body))
+      try {
+        json(res, 200, { ok: true, task: ctx.scheduleFor(root).toggle(id, enabled) })
+      } catch (error) {
+        json(res, 400, fail(error instanceof Error ? error.message : String(error)))
+      }
+    }),
+    handle('schedule.fire', (body, res) => {
+      const id = Number(str(body, 'id'))
+      const root = ctx.fs.rootFor(sessionOf(body))
+      const scheduler = ctx.scheduleFor(root)
+      const task = scheduler.list().find((item) => item.id === id)
+      if (task === undefined) { json(res, 400, fail('task not found')); return }
+      void scheduler.fire(task).then(() => json(res, 200, ok()))
+    }),
+    // ---- notifications ----
+    handle('notify.list', (body, res) => {
+      const root = ctx.fs.rootFor(sessionOf(body))
+      json(res, 200, { ok: true, items: ctx.notifyFor(root).list(50) })
+    }),
+    handle('notify.retry', (body, res) => {
+      const id = Number(str(body, 'id'))
+      const root = ctx.fs.rootFor(sessionOf(body))
+      try {
+        json(res, 200, { ok: true, item: ctx.notifyFor(root).retry(id) })
+      } catch (error) {
+        json(res, 400, fail(error instanceof Error ? error.message : String(error)))
+      }
+    }),
+    handle('notify.resolve', (body, res) => {
+      const id = Number(str(body, 'id'))
+      const verdict = str(body, 'verdict') === 'succeeded' ? 'succeeded' as const : 'failed' as const
+      const root = ctx.fs.rootFor(sessionOf(body))
+      try {
+        json(res, 200, { ok: true, item: ctx.notifyFor(root).resolve(id, verdict) })
+      } catch (error) {
+        json(res, 400, fail(error instanceof Error ? error.message : String(error)))
+      }
+    }),
+    handle('notify.test', async (body, res) => {
+      const url = str(body, 'url') ?? ''
+      const message = str(body, 'message') ?? 'dsh-nas 测试通知'
+      if (url === '') { json(res, 400, fail('url required')); return }
+      const root = ctx.fs.rootFor(sessionOf(body))
+      const notifier = ctx.notifyFor(root)
+      const row = notifier.enqueue('manual', 'notify.test', `manual:${Date.now()}`)
+      const delivered = await notifier.deliver(row.id, url, { event: 'notify.test', message, ts: Date.now() })
+      json(res, 200, { ok: true, item: delivered })
     }),
   ]
 }

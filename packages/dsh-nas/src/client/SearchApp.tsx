@@ -1,13 +1,13 @@
 /**
- * Search window (M1 placeholder): lists workspace files filtered by name.
- * The full-text search engine (SQLite FTS5 + Chinese tokenizer) lands in M2;
- * the window shell and navigation are already in place.
+ * Search window: full-text query over workspace files (name + text content
+ * via FTS5 with CJK bigram tokenization). Hits open in the matching app or
+ * the text preview.
  */
 
 import React, { useEffect, useState } from 'react'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import type { NasKey } from './locales.ts'
-import type { NasFsEntry } from '../protocol.ts'
+import type { SearchHit } from '../search.ts'
 import type { NasWindow } from './store.ts'
 import { NasApi } from './api.ts'
 import { desktopStore } from './store.ts'
@@ -22,53 +22,44 @@ const api = new NasApi()
 
 export function SearchApp({ t }: SearchAppProps): React.ReactElement {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<NasFsEntry[]>([])
-  const [loading, setLoading] = useState(false)
-  const [scanned, setScanned] = useState(false)
+  const [hits, setHits] = useState<SearchHit[]>([])
+  const [searching, setSearching] = useState(false)
+  const [searched, setSearched] = useState(false)
 
   useEffect(() => {
     if (query.trim() === '') {
-      setResults([])
-      setScanned(false)
+      setHits([])
+      setSearched(false)
       return
     }
     const timer = setTimeout(() => {
       void (async () => {
-        setLoading(true)
+        setSearching(true)
         try {
-          const all: NasFsEntry[] = []
-          const stack = ['']
-          while (stack.length > 0 && all.length < 500) {
-            const dir = stack.pop() ?? ''
-            const result = await api.list(dir)
-            if (result.error !== undefined) continue
-            for (const entry of result.entries) {
-              if (all.length >= 500) break
-              if (entry.kind === 'dir') stack.push(entry.path)
-              else all.push(entry)
-            }
-          }
-          const needle = query.trim().toLowerCase()
-          setResults(all.filter((entry) => entry.name.toLowerCase().includes(needle)))
-          setScanned(true)
+          const result = await api.search(query.trim(), 100)
+          setHits(result.hits)
+          setSearched(true)
         } catch {
-          setScanned(true)
+          setHits([])
+          setSearched(true)
         } finally {
-          setLoading(false)
+          setSearching(false)
         }
       })()
-    }, 300)
+    }, 350)
     return () => clearTimeout(timer)
   }, [query])
 
-  const openEntry = (entry: NasFsEntry): void => {
+  const openEntry = (hit: SearchHit): void => {
     const apps = desktopStore.getSnapshot().apps
-    const app = apps.find((item) => item.fileExts.includes(entry.ext))
+    const dot = hit.name.lastIndexOf('.')
+    const ext = dot >= 0 ? hit.name.slice(dot + 1).toLowerCase() : ''
+    const app = apps.find((item) => item.fileExts.includes(ext))
     if (app !== undefined) {
-      desktopStore.openWindow(app.windowKind, app.name, { path: entry.path })
+      desktopStore.openWindow(app.windowKind, app.name, { path: hit.path })
       return
     }
-    desktopStore.openWindow('preview', entry.name, { path: entry.path, editable: true })
+    desktopStore.openWindow('preview', hit.name, { path: hit.path, editable: true })
   }
 
   return (
@@ -84,13 +75,14 @@ export function SearchApp({ t }: SearchAppProps): React.ReactElement {
       </div>
       <div className={css.fmList}>
         {query.trim() === '' && <div className={css.fmEmpty}>{t('app.search')}</div>}
-        {query.trim() !== '' && !loading && scanned && results.length === 0 && <div className={css.fmEmpty}>—</div>}
-        {results.map((entry) => (
-          <div key={entry.path} className={css.fmRow}>
-            <button type="button" className={css.fmRowMain} onClick={() => openEntry(entry)}>
-              <span className={[css.fmIcon, entry.kind === 'dir' ? css.fmIconDir : css.fmIconFile].join(' ')} aria-hidden="true" />
-              <span className={css.fmName}>{entry.name}</span>
-              <span className={css.fmMeta}>{entry.path}</span>
+        {query.trim() !== '' && !searching && searched && hits.length === 0 && <div className={css.fmEmpty}>{t('search.noResults')}</div>}
+        {hits.map((hit) => (
+          <div key={hit.path} className={css.fmRow}>
+            <button type="button" className={css.fmRowMain} onClick={() => openEntry(hit)}>
+              <span className={css.fmIconFile} aria-hidden="true" />
+              <span className={css.fmName}>{hit.name}</span>
+              <span className={css.searchSnippet}>{hit.snippet}</span>
+              <span className={css.fmMeta}>{hit.path}</span>
             </button>
           </div>
         ))}

@@ -27,6 +27,10 @@ import { readConfig, writeConfig, type NasConfigFile } from './config.ts'
 import { FsApi, type RootResolver } from './fsapi.ts'
 import type { NasPrefs } from './protocol.ts'
 import { dataRoutes, managementRoutes, type NasRouteContext } from './routes.ts'
+import { dbFor } from './db.ts'
+import { SearchIndex } from './search.ts'
+import { TaskScheduler } from './scheduler.ts'
+import { Notifier } from './notify.ts'
 
 /** Stable cordis plugin name. */
 export const name = 'dsh-nas'
@@ -109,12 +113,65 @@ export function apply(ctx: Context, config?: Config): void {
   }
 
   const resolveRoot = makeRootResolver(ctx)
-  const fs = new FsApi(resolveRoot)
+
+  // Per-root M2 runtime: index maintenance, scheduler, notifier. The
+  // scheduler is rebuilt when the workspace root changes (session switch).
+  const runtimes = new Map<string, { search: SearchIndex; scheduler: TaskScheduler; notifier: Notifier }>()
+  let activeRoot: string | undefined
+  let activeScheduler: TaskScheduler | undefined
+
+  const runtimeFor = (root: string): { search: SearchIndex; scheduler: TaskScheduler; notifier: Notifier } => {
+    let runtime = runtimes.get(root)
+    if (runtime === undefined) {
+      const db = dbFor(root)
+      const notifier = new Notifier(db)
+      const scheduler = new TaskScheduler(db, root, async (task) => {
+        // Notify action: enqueue + deliver immediately to the task URL.
+        if (task.actionTarget === '') return
+        const row = notifier.enqueue(`schedule:${task.id}`, 'schedule.fire', `schedule:${task.id}:${Date.now()}`)
+        await notifier.deliver(row.id, task.actionTarget, {
+          event: 'schedule.fire', task: task.name, cron: task.cron, ts: Date.now(),
+        })
+      })
+      runtime = { search: new SearchIndex(db), scheduler, notifier }
+      runtimes.set(root, runtime)
+    }
+    if (activeRoot !== root) {
+      activeScheduler?.stop()
+      activeScheduler = runtime.scheduler
+      runtime.scheduler.start()
+      activeRoot = root
+      // Initial rescan keeps the index fresh across restarts — run it
+      // asynchronously so the first request is not blocked on indexing.
+      setTimeout(() => {
+        try { runtime.search.rescan(root) } catch { /* best effort */ }
+      }, 0)
+    }
+    return runtime
+  }
+
+  const fs = new FsApi(resolveRoot, (root, rel, op) => {
+    try {
+      const runtime = runtimeFor(root)
+      if (op === 'write' || op === 'copy' || op === 'mkdir') runtime.search.upsert(rel, root)
+      else if (op === 'move') {
+        // Re-index both the source (now missing -> remove) and the target.
+        runtime.search.upsert(rel, root)
+        runtime.search.rescan(root)
+      } else if (op === 'delete') runtime.search.remove(rel)
+    } catch {
+      // index maintenance must never break file ops
+    }
+  })
 
   // App registry service: software packages call ctx.nas.apps.register(...).
   ctx.provide(NAS_APPS_SERVICE, apps)
 
   const routeCtx: NasRouteContext = {
+    searchFor: (root) => runtimeFor(root).search,
+    scheduleFor: (root) => runtimeFor(root).scheduler,
+    notifyFor: (root) => runtimeFor(root).notifier,
+
     fs,
     apps,
     getPrefs: () => prefs,

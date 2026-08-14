@@ -25,7 +25,6 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import { NasApi } from './api.ts'
 import { Desktop } from './Desktop.tsx'
-import { EntryButton } from './EntryButton.tsx'
 import { en, zh, type NasKey } from './locales.ts'
 import { desktopStore } from './store.ts'
 import type { AppWindowProps } from './store.ts'
@@ -77,19 +76,6 @@ export function apply(ctx: ClientContext): void {
     } catch {
       return zh[key]
     }
-  }
-
-  // Sidebar entry.
-  try {
-    ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
-      name: 'sidebar.footer.action',
-      id: 'nas-entry',
-      order: 70,
-      locale: NS,
-      label: () => t('entry.label'),
-    }, (props: { t: (key: NasKey) => string }) => createElement(EntryButton, props)))
-  } catch (error) {
-    console.warn('[dsh-nas] sidebar entry registration failed:', error)
   }
 
   // Desktop overlay (frame-wide floating layer; renders null while closed).

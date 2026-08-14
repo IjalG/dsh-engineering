@@ -7,6 +7,9 @@
 import type {
   NasActionResult, NasAppMeta, NasFsListResult, NasPrefs, NasReadResult, NasTrashEntry,
 } from '../protocol.ts'
+import type { ScheduleTask } from '../scheduler.ts'
+import type { NotificationRow } from '../notify.ts'
+import type { SearchHit } from '../search.ts'
 import { NAS_API_PREFIX } from '../protocol.ts'
 
 /** Resolve the active session id (best effort; host falls back without it). */
@@ -92,5 +95,41 @@ export class NasApi {
 
   prefsSet(prefs: NasPrefs): Promise<NasActionResult> {
     return call('prefs.set', { prefs })
+  }
+
+  search(query: string, limit?: number): Promise<{ ok: boolean; hits: SearchHit[] }> {
+    return call('search.query', { query, ...(limit !== undefined ? { limit } : {}) })
+  }
+
+  scheduleList(): Promise<{ ok: boolean; tasks: ScheduleTask[] }> {
+    return call('schedule.list')
+  }
+
+  scheduleCreate(name: string, cron: string, actionType: string, actionTarget: string): Promise<NasActionResult & { task?: ScheduleTask }> {
+    return call('schedule.create', { name, cron, actionType, actionTarget })
+  }
+
+  scheduleRemove(id: number): Promise<NasActionResult> {
+    return call('schedule.remove', { id: String(id) })
+  }
+
+  scheduleToggle(id: number, enabled: boolean): Promise<{ ok: boolean; task?: ScheduleTask; error?: string }> {
+    return call('schedule.toggle', { id: String(id), enabled })
+  }
+
+  scheduleFire(id: number): Promise<NasActionResult> {
+    return call('schedule.fire', { id: String(id) })
+  }
+
+  notifyList(): Promise<{ ok: boolean; items: NotificationRow[] }> {
+    return call('notify.list')
+  }
+
+  notifyRetry(id: number): Promise<{ ok: boolean; error?: string }> {
+    return call('notify.retry', { id: String(id) })
+  }
+
+  notifyResolve(id: number, verdict: 'succeeded' | 'failed'): Promise<{ ok: boolean; error?: string }> {
+    return call('notify.resolve', { id: String(id), verdict })
   }
 }

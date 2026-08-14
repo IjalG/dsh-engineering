@@ -103,10 +103,12 @@ class DesktopStore {
     const viewportW = typeof window !== 'undefined' ? window.innerWidth : 1200
     const viewportH = typeof window !== 'undefined' ? window.innerHeight : 800
     const panel = this.state.mode === 'panel'
-    const w = panel ? Math.min(640, Math.round(viewportW * 0.9)) : Math.round(viewportW * 0.62)
-    const h = panel ? Math.min(420, Math.round(viewportH * 0.72)) : Math.round(viewportH * 0.72)
-    const x = panel ? Math.max(8, Math.round((viewportW - w) / 2)) : Math.round((viewportW - w) / 2)
-    const y = panel ? 48 : Math.round((viewportH - h) / 2)
+    // Panel mode: the left dock (76px) and the right aionui inset leave the
+    // window layer in the middle; size windows to that region.
+    const w = panel ? Math.round((viewportW - 96) * 0.78) : Math.round(viewportW * 0.62)
+    const h = panel ? Math.round(viewportH * 0.74) : Math.round(viewportH * 0.72)
+    const x = panel ? Math.max(96, Math.round(76 + (viewportW - 76 - w) / 2)) : Math.round((viewportW - w) / 2)
+    const y = panel ? 40 : Math.round((viewportH - h) / 2)
     return { x, y, w, h }
   }
 
