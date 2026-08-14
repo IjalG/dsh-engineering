@@ -566,13 +566,66 @@
   overflow: auto;
 }
 
-.windowResize {
+.windowEdge {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 18px;
-  height: 18px;
-  cursor: nwse-resize;
+  z-index: 5;
+  touch-action: none;
+}
+
+.edgeN {
+  top: -4px;
+  left: 10px;
+  right: 10px;
+  height: 8px;
+}
+
+.edgeS {
+  bottom: -4px;
+  left: 10px;
+  right: 10px;
+  height: 8px;
+}
+
+.edgeE {
+  right: -4px;
+  top: 10px;
+  bottom: 10px;
+  width: 8px;
+}
+
+.edgeW {
+  left: -4px;
+  top: 10px;
+  bottom: 10px;
+  width: 8px;
+}
+
+.edgeNE {
+  top: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+}
+
+.edgeNW {
+  top: -6px;
+  left: -6px;
+  width: 16px;
+  height: 16px;
+}
+
+.edgeSE {
+  bottom: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+}
+
+.edgeSW {
+  bottom: -6px;
+  left: -6px;
+  width: 16px;
+  height: 16px;
 }
 
 .windowMissing {

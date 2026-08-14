@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import type { MailKey } from './locales.ts'
 import type { MailMessage, MailSummary } from '../mail.ts'
-import { MailApi, type MailConfigView } from './api.ts'
+import { MailApi, setMailSessionId, type MailConfigView } from './api.ts'
 import css from './mail.module.css'
 
 /** Window shape from the nas desktop (structural). */
@@ -21,13 +21,15 @@ export interface MailWindowProps {
   window: NasWindowLike
   close: () => void
   t: Translate<MailKey>
+  sessionId?: string
 }
 
 const api = new MailApi()
 
 type View = 'inbox' | 'compose' | 'settings'
 
-export function MailWindow({ t }: MailWindowProps): React.ReactElement {
+export function MailWindow({ t, sessionId }: MailWindowProps): React.ReactElement {
+  useEffect(() => { setMailSessionId(sessionId) }, [sessionId])
   const [view, setView] = useState<View>('inbox')
   const [items, setItems] = useState<MailSummary[]>([])
   const [message, setMessage] = useState<MailMessage | undefined>()

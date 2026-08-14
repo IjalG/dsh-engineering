@@ -5,8 +5,16 @@
 import type { SheetGrid, SlideText } from '../docs.ts'
 import type { OcrPage } from '../ocr.ts'
 
+let ACTIVE_SESSION: string | undefined
+
+/** The desktop feeds the active session id through the window props. */
+export function setOfficeSessionId(sessionId: string | undefined): void {
+  ACTIVE_SESSION = sessionId
+}
+
 /** Resolve the active session id (best effort). */
 export function currentSessionId(): string | undefined {
+  if (ACTIVE_SESSION !== undefined && ACTIVE_SESSION !== '') return ACTIVE_SESSION
   try {
     return document.querySelector<HTMLElement>('[data-session-id]')?.dataset.sessionId
   } catch {

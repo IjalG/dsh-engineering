@@ -1,35 +1,67 @@
-/* dsh-mail window styles */
+/* dsh-mail window styles — refined to match the desktop design system. */
 
 .container {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  background: var(--nas-panel, #f6f8fb);
+  color: var(--nas-fg, #1f2328);
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    background: #171b23;
+    color: #e5e9f0;
+  }
 }
 
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border-bottom: 1px solid rgba(31, 35, 40, 0.1);
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(31, 35, 40, 0.09);
+  background: rgba(255, 255, 255, 0.65);
   flex-shrink: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .toolbar {
+    background: rgba(30, 35, 45, 0.55);
+    border-bottom-color: rgba(229, 233, 240, 0.09);
+  }
 }
 
 .tab {
   border: none;
   background: transparent;
-  padding: 5px 12px;
+  padding: 6px 14px;
   font-size: 12.5px;
   cursor: pointer;
-  color: inherit;
-  border-radius: 6px;
+  color: rgba(31, 35, 40, 0.6);
+  border-radius: 8px;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.tab:hover {
+  background: rgba(31, 35, 40, 0.06);
 }
 
 .tabActive {
   background: rgba(59, 130, 246, 0.12);
   color: #1d4ed8;
-  font-weight: 600;
+  font-weight: 620;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tab {
+    color: rgba(229, 233, 240, 0.6);
+  }
+
+  .tabActive {
+    color: #7ab3ff;
+  }
 }
 
 .spacer {
@@ -42,17 +74,19 @@
 }
 
 .button {
-  border: 1px solid rgba(31, 35, 40, 0.16);
-  background: #fff;
-  border-radius: 6px;
-  padding: 3px 10px;
+  border: 1px solid rgba(31, 35, 40, 0.14);
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 8px;
+  padding: 5px 12px;
   font-size: 12px;
   cursor: pointer;
   color: inherit;
+  transition: background 120ms ease, border-color 120ms ease;
 }
 
 .button:hover:not(:disabled) {
-  background: #f0f4f8;
+  background: #fff;
+  border-color: rgba(59, 130, 246, 0.45);
 }
 
 .button:disabled {
@@ -60,12 +94,21 @@
   cursor: default;
 }
 
+@media (prefers-color-scheme: dark) {
+  .button {
+    background: rgba(45, 51, 62, 0.85);
+    border-color: rgba(229, 233, 240, 0.14);
+  }
+}
+
 .body {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 6px;
+  padding: 8px;
 }
+
+/* ---- inbox list ---- */
 
 .list {
   display: flex;
@@ -74,7 +117,7 @@
 }
 
 .empty {
-  padding: 32px 12px;
+  padding: 40px 12px;
   text-align: center;
   color: rgba(31, 35, 40, 0.45);
   font-size: 12.5px;
@@ -83,14 +126,15 @@
 .row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   border: none;
   background: transparent;
-  border-radius: 6px;
-  padding: 7px 8px;
+  border-radius: 8px;
+  padding: 9px 10px;
   cursor: pointer;
   color: inherit;
   text-align: left;
+  transition: background 120ms ease;
 }
 
 .row:hover {
@@ -107,6 +151,7 @@
 
 .dotUnseen {
   background: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 .rowSubject {
@@ -116,15 +161,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12.5px;
+  font-weight: 560;
 }
 
 .rowFrom {
   font-size: 11.5px;
   color: rgba(31, 35, 40, 0.6);
-  max-width: 140px;
+  max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .rowDate {
@@ -133,21 +180,23 @@
   flex-shrink: 0;
 }
 
+/* ---- reader ---- */
+
 .reader {
-  padding: 8px 10px;
+  padding: 10px 14px;
 }
 
 .readerHead {
   border-bottom: 1px solid rgba(31, 35, 40, 0.1);
-  padding-bottom: 8px;
-  margin-bottom: 8px;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .readerSubject {
   display: block;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 4px;
+  font-size: 15px;
+  font-weight: 650;
+  margin-bottom: 5px;
 }
 
 .readerMeta {
@@ -156,53 +205,85 @@
 }
 
 .untrusted {
-  margin-top: 6px;
+  display: inline-block;
+  margin-top: 8px;
   font-size: 11.5px;
   color: #b45309;
+  background: rgba(245, 158, 11, 0.12);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-weight: 600;
 }
 
 .readerBody {
-  margin: 0 0 10px;
-  font-size: 12.5px;
+  margin: 0 0 12px;
+  font-size: 13px;
   white-space: pre-wrap;
   word-break: break-all;
   font-family: inherit;
-  line-height: 1.7;
+  line-height: 1.75;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(31, 35, 40, 0.08);
+  border-radius: 10px;
+  padding: 14px 16px;
 }
 
+@media (prefers-color-scheme: dark) {
+  .readerBody {
+    background: #1c212a;
+  }
+}
+
+/* ---- compose / settings form ---- */
+
 .form {
-  max-width: 560px;
-  padding: 10px;
+  max-width: 620px;
+  padding: 12px;
 }
 
 .formRow {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 10px;
   align-items: center;
 }
 
 .label {
   font-size: 12px;
-  color: rgba(31, 35, 40, 0.7);
+  color: rgba(31, 35, 40, 0.65);
   flex-shrink: 0;
-  width: 64px;
+  width: 72px;
 }
 
 .input {
   flex: 1;
-  border: 1px solid rgba(31, 35, 40, 0.16);
-  border-radius: 6px;
-  padding: 4px 8px;
+  border: 1px solid rgba(31, 35, 40, 0.14);
+  border-radius: 8px;
+  padding: 6px 10px;
   font-size: 12.5px;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.95);
   color: inherit;
   min-width: 0;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.55);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+}
+
+@media (prefers-color-scheme: dark) {
+  .input {
+    background: #232833;
+    border-color: rgba(229, 233, 240, 0.14);
+  }
 }
 
 .textarea {
-  min-height: 140px;
+  min-height: 180px;
   resize: vertical;
+  line-height: 1.7;
 }
 
 .checkRow {
@@ -210,6 +291,6 @@
   align-items: center;
   gap: 8px;
   font-size: 12.5px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   cursor: pointer;
 }

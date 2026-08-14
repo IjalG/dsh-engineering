@@ -11,11 +11,20 @@ import type { ScheduleTask } from '../scheduler.ts'
 import type { NotificationRow } from '../notify.ts'
 import type { SearchHit } from '../search.ts'
 import { NAS_API_PREFIX } from '../protocol.ts'
+import { desktopStore } from './store.ts'
 
-/** Resolve the active session id (best effort; host falls back without it). */
+/**
+ * Resolve the active session id: the desktop store (fed by the shell's
+ * session hook) first, then the document-element marker as a fallback.
+ */
 export function currentSessionId(): string | undefined {
   try {
-    // The shell stores the active session on the document element.
+    const fromStore = desktopStore.getSnapshot().activeSessionId
+    if (fromStore !== undefined && fromStore !== '') return fromStore
+  } catch {
+    // store not yet loaded
+  }
+  try {
     const element = document.querySelector<HTMLElement>('[data-session-id]')
     return element?.dataset.sessionId
   } catch {

@@ -149,8 +149,26 @@ function systemIconHtml(kind: string): string {
   return `<span style="color:${icon.color};display:inline-flex">${icon.svg}</span>`
 }
 
+/** Extract the active session id from any session-store snapshot shape. */
+function extractSessionId(state: unknown): string | undefined {
+  if (typeof state !== 'object' || state === null) return undefined
+  const snapshot = state as Record<string, unknown>
+  for (const key of ['recentSessionId', 'activeSessionId', 'currentSessionId', 'sessionId']) {
+    const value = snapshot[key]
+    if (typeof value === 'string' && value.length > 0) return value
+  }
+  const sessions = snapshot.sessions
+  if (Array.isArray(sessions) && sessions.length > 0) {
+    const first = sessions[0] as Record<string, unknown> | undefined
+    if (first !== undefined && typeof first.id === 'string' && first.id !== '') return first.id
+  }
+  return undefined
+}
+
 export interface DesktopProps {
   t: Translate<NasKey>
+  /** Shell-standard session selector hook (slot standard prop). */
+  useSessions?: (selector: (state: unknown) => unknown) => unknown
 }
 
 /** System apps (rendered beside registered software apps). */
@@ -413,8 +431,16 @@ function DockHandle({ t }: { t: Translate<NasKey> }): React.ReactElement {
 }
 
 /** Desktop root: closed shows only the right-edge dock handle. */
-export function Desktop({ t }: DesktopProps): React.ReactElement {
+export function Desktop({ t, useSessions }: DesktopProps): React.ReactElement {
   const snapshot = useSyncExternalStore(desktopStore.subscribe, desktopStore.getSnapshot)
+
+  // Feed the active session id into the desktop store (workspace-rooted
+  // filesystem calls resolve against the real session cwd).
+  const sessionId = useSessions !== undefined ? (useSessions((state) => extractSessionId(state)) as string | undefined) : undefined
+  useEffect(() => {
+    desktopStore.setActiveSessionId(sessionId)
+  }, [sessionId])
+
   if (!snapshot.open) {
     return <DockHandle t={t} />
   }

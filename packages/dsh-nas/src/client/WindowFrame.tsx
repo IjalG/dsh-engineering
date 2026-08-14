@@ -37,7 +37,8 @@ function WindowContent({ window, t }: WindowFrameProps): React.ReactElement | nu
   // App window registered by a software package.
   const AppComponent = desktopStore.getSnapshot().appWindows.get(window.kind)
   if (AppComponent !== undefined) {
-    return <AppComponent window={window} close={() => desktopStore.closeWindow(window.id)} />
+    const sessionId = desktopStore.getSnapshot().activeSessionId
+    return <AppComponent window={window} close={() => desktopStore.closeWindow(window.id)} sessionId={sessionId} />
   }
   return <div className={css.windowMissing}>{t('app.unknown')}</div>
 }
@@ -48,8 +49,17 @@ const KIND_COLORS: Record<string, string> = {
   review: '#10b981', settings: '#64748b', preview: '#3b82f6', office: '#3b82f6', mail: '#ef4444',
 }
 
-/** Pointer-drag state for the frame. */
-type DragMode = 'move' | 'resize' | null
+/** Pointer-drag state: move, or one of the eight resize edges/corners. */
+type DragMode = 'move' | 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw' | null
+
+/** Resize edge cursor mapping. */
+const EDGE_CURSOR: Record<Exclude<DragMode, 'move' | null>, string> = {
+  n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize',
+  ne: 'nesw-resize', sw: 'nesw-resize', nw: 'nwse-resize', se: 'nwse-resize',
+}
+
+const MIN_W = 320
+const MIN_H = 200
 
 export function WindowFrame({ window, t }: WindowFrameProps): React.ReactElement {
   const [drag, setDrag] = useState<DragMode>(null)
@@ -70,9 +80,26 @@ export function WindowFrame({ window, t }: WindowFrameProps): React.ReactElement
     const dy = event.clientY - startY
     if (drag === 'move') {
       desktopStore.moveWindow(window.id, baseX + dx, baseY + dy)
-    } else {
-      desktopStore.resizeWindow(window.id, Math.max(320, baseW + dx), Math.max(200, baseH + dy))
+      return
     }
+    // Resize per edge/corner: adjust the origin for west/north edges and the
+    // size for east/south edges, clamping to the minimum.
+    let x = baseX
+    let y = baseY
+    let w = baseW
+    let h = baseH
+    if (drag.includes('e')) w = Math.max(MIN_W, baseW + dx)
+    if (drag.includes('s')) h = Math.max(MIN_H, baseH + dy)
+    if (drag.includes('w')) {
+      w = Math.max(MIN_W, baseW - dx)
+      x = baseX + (baseW - w)
+    }
+    if (drag.includes('n')) {
+      h = Math.max(MIN_H, baseH - dy)
+      y = baseY + (baseH - h)
+    }
+    desktopStore.moveWindow(window.id, x, y)
+    desktopStore.resizeWindow(window.id, w, h)
   }
 
   const onPointerUp = (): void => {
@@ -121,7 +148,18 @@ export function WindowFrame({ window, t }: WindowFrameProps): React.ReactElement
       <div className={css.windowBody}>
         <WindowContent window={window} t={t} />
       </div>
-      <div className={css.windowResize} onPointerDown={onPointerDown('resize')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
+      {!window.maximized && (
+        <>
+          <div className={[css.windowEdge, css.edgeN].join(' ')} style={{ cursor: EDGE_CURSOR.n }} onPointerDown={onPointerDown('n')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
+          <div className={[css.windowEdge, css.edgeS].join(' ')} style={{ cursor: EDGE_CURSOR.s }} onPointerDown={onPointerDown('s')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
+          <div className={[css.windowEdge, css.edgeE].join(' ')} style={{ cursor: EDGE_CURSOR.e }} onPointerDown={onPointerDown('e')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
+          <div className={[css.windowEdge, css.edgeW].join(' ')} style={{ cursor: EDGE_CURSOR.w }} onPointerDown={onPointerDown('w')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
+          <div className={[css.windowEdge, css.edgeNE].join(' ')} style={{ cursor: EDGE_CURSOR.ne }} onPointerDown={onPointerDown('ne')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
+          <div className={[css.windowEdge, css.edgeNW].join(' ')} style={{ cursor: EDGE_CURSOR.nw }} onPointerDown={onPointerDown('nw')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
+          <div className={[css.windowEdge, css.edgeSE].join(' ')} style={{ cursor: EDGE_CURSOR.se }} onPointerDown={onPointerDown('se')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
+          <div className={[css.windowEdge, css.edgeSW].join(' ')} style={{ cursor: EDGE_CURSOR.sw }} onPointerDown={onPointerDown('sw')} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
+        </>
+      )}
     </div>
   )
 }

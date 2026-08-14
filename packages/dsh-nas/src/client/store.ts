@@ -37,12 +37,16 @@ export interface DesktopSnapshot {
   apps: NasAppMeta[]
   /** Registered app window components (kind -> component). */
   appWindows: ReadonlyMap<string, ComponentType<AppWindowProps>>
+  /** Active DSH session id (from the shell's session store hook). */
+  activeSessionId?: string
 }
 
 export interface AppWindowProps {
   window: NasWindow
   /** Close this window. */
   close: () => void
+  /** Active session id for workspace-bound API calls. */
+  sessionId?: string
 }
 
 const SYSTEM_KINDS: readonly SystemKind[] = ['files', 'trash', 'settings', 'search']
@@ -55,6 +59,7 @@ class DesktopStore {
     windows: [],
     apps: [],
     appWindows: new Map(),
+    activeSessionId: undefined,
   }
 
   private listeners = new Set<() => void>()
@@ -95,6 +100,11 @@ class DesktopStore {
 
   setApps(apps: NasAppMeta[]): void {
     this.set({ apps })
+  }
+
+  setActiveSessionId(sessionId: string | undefined): void {
+    if (this.state.activeSessionId === sessionId) return
+    this.set({ activeSessionId: sessionId })
   }
 
   // ---- windows ----

@@ -85,7 +85,7 @@ export function apply(ctx: ClientContext): void {
       id: 'nas-desktop',
       order: 10,
       locale: NS,
-    }, () => createElement(Desktop, { t: ctx.locale.bind(NS) })))
+    }, (props: { useSessions?: (selector: (state: unknown) => unknown) => unknown }) => createElement(Desktop, { ...props, t: ctx.locale.bind(NS) })))
   } catch (error) {
     console.warn('[dsh-nas] desktop registration failed:', error)
   }

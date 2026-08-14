@@ -4,7 +4,15 @@
 
 import type { MailMessage, MailSummary } from '../mail.ts'
 
+let ACTIVE_SESSION: string | undefined
+
+/** The desktop feeds the active session id through the window props. */
+export function setMailSessionId(sessionId: string | undefined): void {
+  ACTIVE_SESSION = sessionId
+}
+
 function sessionId(): string | undefined {
+  if (ACTIVE_SESSION !== undefined && ACTIVE_SESSION !== '') return ACTIVE_SESSION
   try {
     return document.querySelector<HTMLElement>('[data-session-id]')?.dataset.sessionId
   } catch {

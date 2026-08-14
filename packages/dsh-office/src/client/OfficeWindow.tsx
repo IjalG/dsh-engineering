@@ -18,13 +18,14 @@ import { WordApp } from './WordApp.tsx'
 import { ExcelApp } from './ExcelApp.tsx'
 import { PdfApp } from './PdfApp.tsx'
 import { PptApp } from './PptApp.tsx'
-import { OfficeApi } from './api.ts'
+import { OfficeApi, setOfficeSessionId } from './api.ts'
 import css from './office.module.css'
 
 export interface OfficeWindowProps {
   window: NasWindowLike
   close: () => void
   t: Translate<OfficeKey>
+  sessionId?: string
 }
 
 const api = new OfficeApi()
@@ -57,7 +58,8 @@ function Welcome({ t, onOpen }: { t: Translate<OfficeKey>; onOpen: (path: string
 }
 
 /** The office window. */
-export function OfficeWindow({ window, t }: OfficeWindowProps): React.ReactElement {
+export function OfficeWindow({ window, t, sessionId }: OfficeWindowProps): React.ReactElement {
+  useEffect(() => { setOfficeSessionId(sessionId) }, [sessionId])
   const [currentPath, setCurrentPath] = useState<string | undefined>(window.path)
   const [browse, setBrowse] = useState(false)
   const [files, setFiles] = useState<Array<{ path: string; name: string }>>([])
