@@ -132,4 +132,20 @@ export class NasApi {
   notifyResolve(id: number, verdict: 'succeeded' | 'failed'): Promise<{ ok: boolean; error?: string }> {
     return call('notify.resolve', { id: String(id), verdict })
   }
+
+  reviewList(): Promise<{ ok: boolean; items: Array<{ id: number; path: string; status: string; createdAt: number; actor: string }> }> {
+    return call('review.list')
+  }
+
+  reviewDiff(id: number): Promise<{ ok: boolean; record?: { id: number; path: string; oldContent: string; newContent: string; status: string; createdAt: number; actor: string }; error?: string }> {
+    return call('review.diff', { id: String(id) })
+  }
+
+  reviewAccept(id: number): Promise<{ ok: boolean; error?: string }> {
+    return call('review.accept', { id: String(id) })
+  }
+
+  reviewReject(id: number): Promise<{ ok: boolean; error?: string }> {
+    return call('review.reject', { id: String(id) })
+  }
 }

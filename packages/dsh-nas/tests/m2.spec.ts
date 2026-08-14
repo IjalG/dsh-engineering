@@ -11,6 +11,7 @@ import { dbFor } from '../src/db.ts'
 import { bigramize, matchExpression, SearchIndex } from '../src/search.ts'
 import { Notifier, type WebhookSender } from '../src/notify.ts'
 import { TaskScheduler, validCron } from '../src/scheduler.ts'
+import { ReviewLedger } from '../src/review.ts'
 
 let tmp: string
 let root: string
@@ -162,5 +163,34 @@ describe('TaskScheduler', () => {
     expect(off.enabled).toBe(false)
     const on = scheduler.toggle(task.id, true)
     expect(on.enabled).toBe(true)
+  })
+})
+
+describe('Review ledger', () => {
+  it('stages, accepts and rejects edits', () => {
+    const db = dbFor(root)
+    const ledger = new ReviewLedger(db)
+    const record = ledger.record('a.txt', 'old', 'new', 'agent')
+    expect(record.status).toBe('pending')
+    expect(ledger.pendingCount()).toBe(1)
+
+    const accepted = ledger.accept(record.id)
+    expect(accepted.status).toBe('accepted')
+    expect(ledger.pendingCount()).toBe(0)
+
+    const second = ledger.record('b.txt', 'x', 'y', 'agent')
+    ledger.reject(second.id)
+    expect(ledger.get(second.id)?.status).toBe('rejected')
+  })
+
+  it('lists pending only when asked', () => {
+    const db = dbFor(root)
+    const ledger = new ReviewLedger(db)
+    ledger.record('a.txt', '1', '2', 'agent')
+    ledger.record('b.txt', '1', '2', 'agent')
+    const done = ledger.record('c.txt', '1', '2', 'agent')
+    ledger.accept(done.id)
+    expect(ledger.list('pending').length).toBe(2)
+    expect(ledger.list().length).toBe(3)
   })
 })

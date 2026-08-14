@@ -63,6 +63,7 @@ export const NAS_GUIDANCE = [
   '文件管理 API 语义：删除进回收站（.nas/trash）可恢复；所有写操作有审计；.nas 系统目录对用户界面隐藏。',
   '你（agent）的工作区文件操作照常用常规文件工具；桌面侧的用户操作无需你介入，除非用户在对话中要求协同编辑。',
   '用户提到「工作台 / 桌面 / 文件管理器 / 回收站 / 打开某个文件」等界面操作时即指本插件，可引导用户在侧边栏「工作台」操作。',
+  'agent 编辑工作区文件请用 nas_edit 工具（而非普通写文件）：它会生成「变更」记录，用户在桌面「变更」窗口可 diff 并接受/拒绝——这是桌面协同的审阅流；被拒绝时改动会回滚。',
 ].join('')
 
 /**
@@ -206,9 +207,12 @@ export function apply(ctx: Context, config?: Config): void {
   let disposeSection: (() => void) | undefined
   let disposeRoutes: (() => void) | undefined
 
+  let disposeTool: (() => void) | undefined
+
   const sync = (): void => {
     if (disposeSection !== undefined) { disposeSection(); disposeSection = undefined }
     if (disposeRoutes !== undefined) { disposeRoutes(); disposeRoutes = undefined }
+    if (disposeTool !== undefined) { disposeTool(); disposeTool = undefined }
     const value = current()
     if (!value.enabled) return
     if (value.announceToAgent) {
@@ -225,6 +229,41 @@ export function apply(ctx: Context, config?: Config): void {
       },
       'dsh-nas: routes',
     )
+    // nas_edit tool: staged agent edits go through the review ledger.
+    try {
+      const tools = ctx.get('tools') as { register(definition: { name: string; description: string; parameters: Record<string, { type: string; required?: boolean; description?: string; enum?: string[] }>; execute(args: Record<string, unknown>): Promise<unknown> | unknown; output?: { schema?: unknown } }): () => void } | undefined
+      if (tools !== undefined) {
+        disposeTool = tools.register({
+          name: 'nas_edit',
+          description: '编辑工作区文件（相对路径）。写入内容并生成审阅「变更」记录——用户在桌面「变更」窗口可查看 diff 并接受或拒绝；拒绝会回滚改动。协同编辑请用此工具而非直接写文件。',
+          parameters: {
+            path: { type: 'string', required: true, description: '工作区相对路径（如 docs/plan.md），必须在当前会话工作区内。' },
+            content: { type: 'string', required: true, description: '文件新内容（UTF-8）。' },
+          },
+          execute: async (args: Record<string, unknown>) => {
+            const path = typeof args.path === 'string' ? args.path : ''
+            const content = typeof args.content === 'string' ? args.content : ''
+            if (path === '') return { ok: false, error: 'path required' }
+            const outcome = fs.write(path, content, undefined, true)
+            return { ok: outcome.ok, error: outcome.error, path, reviewId: outcome.reviewId }
+          },
+          output: {
+            schema: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                ok: { type: 'boolean', required: true },
+                error: { type: 'string' },
+                path: { type: 'string' },
+                reviewId: { type: 'integer' },
+              },
+            },
+          },
+        })
+      }
+    } catch {
+      // tools unavailable -> degrade
+    }
   }
 
   installSettingsSection(ctx, NAS_NS, Config, config ?? {}, {

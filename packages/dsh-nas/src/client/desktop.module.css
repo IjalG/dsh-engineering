@@ -831,12 +831,23 @@
 
 /* small screens: keep the panel usable at 390px */
 @media (max-width: 480px) {
-  .desktopPanel {
-    width: 100vw;
+  .dock {
+    width: 52px;
+    left: 6px;
+    padding: 6px 4px;
   }
 
-  .panelHandle {
-    display: none;
+  .dockButton {
+    width: 40px;
+    height: 40px;
+  }
+
+  .windowLayer {
+    left: 60px !important;
+  }
+
+  .window {
+    min-width: 0;
   }
 
   .desktopGrid {
@@ -924,4 +935,100 @@
 .schedStatus.is-sending {
   background: rgba(59, 130, 246, 0.12);
   color: #1d4ed8;
+}
+
+/* ---- review ---- */
+
+.reviewDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.reviewDotPending {
+  background: #f59e0b;
+}
+
+.reviewDotOk {
+  background: #22c55e;
+}
+
+.reviewDotNo {
+  background: #ef4444;
+}
+
+.reviewStatus {
+  font-size: 11px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+  background: rgba(31, 35, 40, 0.08);
+  color: rgba(31, 35, 40, 0.7);
+}
+
+.reviewStatus.is-pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+}
+
+.reviewStatus.is-accepted {
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+}
+
+.reviewStatus.is-rejected {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
+
+.reviewDetail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.reviewDetailHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(31, 35, 40, 0.1);
+  flex-shrink: 0;
+}
+
+.reviewDiff {
+  flex: 1;
+  overflow: auto;
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-size: 12px;
+}
+
+.reviewLine {
+  display: flex;
+  gap: 8px;
+  padding: 1px 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.reviewLine.is-add {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.reviewLine.is-del {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.reviewLineNo {
+  color: rgba(31, 35, 40, 0.35);
+  min-width: 32px;
+  text-align: right;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.reviewLineText {
+  flex: 1;
 }

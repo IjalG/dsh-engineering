@@ -16,6 +16,7 @@ import { SettingsApp } from './SettingsApp.tsx'
 import { TrashApp } from './TrashApp.tsx'
 import { SearchApp } from './SearchApp.tsx'
 import { SchedulerApp } from './SchedulerApp.tsx'
+import { ReviewApp } from './ReviewApp.tsx'
 import css from './desktop.module.css'
 
 export interface WindowFrameProps {
@@ -30,6 +31,7 @@ function WindowContent({ window, t }: WindowFrameProps): React.ReactElement | nu
   if (window.kind === 'settings') return <SettingsApp window={window} t={t} />
   if (window.kind === 'search') return <SearchApp window={window} t={t} />
   if (window.kind === 'scheduler') return <SchedulerApp window={window} t={t} />
+  if (window.kind === 'review') return <ReviewApp window={window} t={t} />
   // Text-file preview window (editable when the extension is text).
   if (window.kind === 'preview') return <Preview window={window} t={t} />
   // App window registered by a software package.

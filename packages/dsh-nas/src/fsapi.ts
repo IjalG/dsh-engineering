@@ -12,6 +12,8 @@ import { audit } from './audit.ts'
 import type { NasFsEntry, NasFsListResult, NasReadResult } from './protocol.ts'
 import { NAS_SYS_DIR } from './protocol.ts'
 import { Trash } from './trash.ts'
+import { ReviewLedger } from './review.ts'
+import { dbFor } from './db.ts'
 
 /** Default text read cap. */
 export const DEFAULT_MAX_READ_BYTES = 1024 * 1024
@@ -90,6 +92,11 @@ export class FsApi {
     return new Trash(root)
   }
 
+  /** Review ledger bound to a root (lazy). */
+  private reviewFor(root: string): ReviewLedger {
+    return new ReviewLedger(dbFor(root))
+  }
+
   /** List a directory (root-relative path; empty = root). */
   list(rel: string, sessionId?: string): NasFsListResult {
     const root = this.resolveRoot(sessionId)
@@ -126,16 +133,72 @@ export class FsApi {
   }
 
   /** Write a text file (creates parent directories). */
-  write(rel: string, content: string, sessionId?: string): { ok: boolean; error?: string } {
+  write(rel: string, content: string, sessionId?: string, staged = false): { ok: boolean; error?: string; reviewId?: number } {
     const root = this.resolveRoot(sessionId)
     const path = resolveInside(root, rel ?? '')
     if (path === undefined) return { ok: false, error: 'path outside workspace' }
     if (Buffer.byteLength(content, 'utf8') > MAX_WRITE_BYTES) return { ok: false, error: 'content too large' }
     try {
+      let reviewId: number | undefined
+      if (staged) {
+        // Stage: snapshot the old content for the review ledger, then write.
+        const oldContent = existsSync(path) && !isDir(path) ? readFileSync(path, 'utf8') : ''
+        const ledger = this.reviewFor(root)
+        reviewId = ledger.record(rel, oldContent, content, 'agent').id
+      }
       mkdirSync(dirname(path), { recursive: true })
       writeFileSync(path, content, 'utf8')
       audit(root, { ts: Date.now(), op: 'write', path: rel, size: Buffer.byteLength(content, 'utf8'), ok: true })
       this.onChange?.(root, rel, 'write')
+      return reviewId === undefined ? { ok: true } : { ok: true, reviewId }
+    } catch (error) {
+      return { ok: false, error: errorMessage(error) }
+    }
+  }
+
+  /** List review records (pending only when status given). */
+  reviewList(root: string, status?: 'pending'): Array<{ id: number; path: string; status: string; createdAt: number; actor: string }> {
+    try {
+      return this.reviewFor(root).list(status, 100)
+    } catch {
+      return []
+    }
+  }
+
+  /** Get one review record (with contents). */
+  reviewGet(root: string, id: number): { id: number; path: string; oldContent: string; newContent: string; status: string; createdAt: number; actor: string } | undefined {
+    try {
+      return this.reviewFor(root).get(id)
+    } catch {
+      return undefined
+    }
+  }
+
+  /** Accept a staged review: keep the new content. */
+  acceptReview(id: number, sessionId?: string): { ok: boolean; error?: string } {
+    const root = this.resolveRoot(sessionId)
+    try {
+      const ledger = this.reviewFor(root)
+      ledger.accept(id)
+      return { ok: true }
+    } catch (error) {
+      return { ok: false, error: errorMessage(error) }
+    }
+  }
+
+  /** Reject a staged review: restore the old content. */
+  rejectReview(id: number, sessionId?: string): { ok: boolean; error?: string } {
+    const root = this.resolveRoot(sessionId)
+    try {
+      const ledger = this.reviewFor(root)
+      const record = ledger.get(id)
+      if (record === undefined) return { ok: false, error: 'review not found' }
+      const path = resolveInside(root, record.path)
+      if (path === undefined) return { ok: false, error: 'path outside workspace' }
+      mkdirSync(dirname(path), { recursive: true })
+      writeFileSync(path, record.oldContent, 'utf8')
+      ledger.reject(id)
+      this.onChange?.(root, record.path, 'write')
       return { ok: true }
     } catch (error) {
       return { ok: false, error: errorMessage(error) }

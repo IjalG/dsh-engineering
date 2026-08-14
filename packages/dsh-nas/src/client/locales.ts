@@ -90,6 +90,12 @@ export const zh = {
   'scheduler.retry': '重试',
   'scheduler.verdictOk': '裁决：成功',
   'scheduler.verdictFail': '裁决：失败',
+  'app.review': '变更',
+  'review.title': '变更审阅',
+  'review.empty': '暂无待审阅的变更',
+  'review.accept': '接受',
+  'review.reject': '拒绝（回滚）',
+  'review.back': '返回',
 } as const
 
 export const en: Record<keyof typeof zh, string> = {
@@ -180,6 +186,12 @@ export const en: Record<keyof typeof zh, string> = {
   'scheduler.retry': 'Retry',
   'scheduler.verdictOk': 'Verdict: succeeded',
   'scheduler.verdictFail': 'Verdict: failed',
+  'app.review': 'Changes',
+  'review.title': 'Change review',
+  'review.empty': 'No staged changes',
+  'review.accept': 'Accept',
+  'review.reject': 'Reject (rollback)',
+  'review.back': 'Back',
 }
 
 export type NasKey = keyof typeof zh

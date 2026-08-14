@@ -98,6 +98,7 @@ function systemApps(t: Translate<NasKey>): NasAppMeta[] {
     { id: 'trash', name: t('app.trash'), icon: '', fileExts: [], windowKind: 'trash', packageName: 'dsh-nas' },
     { id: 'search', name: t('app.search'), icon: '', fileExts: [], windowKind: 'search', packageName: 'dsh-nas' },
     { id: 'scheduler', name: t('app.scheduler'), icon: '', fileExts: [], windowKind: 'scheduler', packageName: 'dsh-nas' },
+    { id: 'review', name: t('app.review'), icon: '', fileExts: [], windowKind: 'review', packageName: 'dsh-nas' },
     { id: 'settings', name: t('app.settings'), icon: '', fileExts: [], windowKind: 'settings', packageName: 'dsh-nas' },
   ]
 }

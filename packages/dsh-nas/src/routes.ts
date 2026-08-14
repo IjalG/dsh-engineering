@@ -77,6 +77,15 @@ function sessionOf(body: unknown): string | undefined {
   return str(body, 'sessionId')
 }
 
+/** Numeric field from a body (number or numeric string). */
+function num(body: unknown, key: string): number {
+  if (typeof body !== 'object' || body === null) return NaN
+  const value = (body as Record<string, unknown>)[key]
+  if (typeof value === 'number') return value
+  if (typeof value === 'string' && value.trim() !== '') return Number(value)
+  return NaN
+}
+
 /** Handler context bundle. */
 export interface NasRouteContext {
   fs: FsApi
@@ -171,7 +180,30 @@ export function dataRoutes(ctx: NasRouteContext): WebRoute[] {
       const path = str(body, 'path')
       const content = str(body, 'content')
       if (path === undefined || content === undefined) { json(res, 400, fail('path and content required')); return }
-      json(res, 200, ctx.fs.write(path, content, sessionOf(body)))
+      const staged = body !== null && typeof body === 'object' && (body as Record<string, unknown>).review === true
+      json(res, 200, ctx.fs.write(path, content, sessionOf(body), staged))
+    }),
+    // ---- review (agent edit staging) ----
+    handle('review.list', (body, res) => {
+      const root = ctx.fs.rootFor(sessionOf(body))
+      const status = str(body, 'status')
+      const items = ctx.fs.reviewList(root, status === 'pending' ? 'pending' : undefined)
+      json(res, 200, { ok: true, items })
+    }),
+    handle('review.diff', (body, res) => {
+      const id = num(body, 'id')
+      const root = ctx.fs.rootFor(sessionOf(body))
+      const record = ctx.fs.reviewGet(root, id)
+      if (record === undefined) { json(res, 404, fail('review not found')); return }
+      json(res, 200, { ok: true, record })
+    }),
+    handle('review.accept', (body, res) => {
+      const id = num(body, 'id')
+      json(res, 200, ctx.fs.acceptReview(id, sessionOf(body)))
+    }),
+    handle('review.reject', (body, res) => {
+      const id = num(body, 'id')
+      json(res, 200, ctx.fs.rejectReview(id, sessionOf(body)))
     }),
     handle('fs.mkdir', (body, res) => {
       const path = str(body, 'path')
@@ -243,12 +275,12 @@ export function dataRoutes(ctx: NasRouteContext): WebRoute[] {
       }
     }),
     handle('schedule.remove', (body, res) => {
-      const id = Number(str(body, 'id'))
+      const id = num(body, 'id')
       const root = ctx.fs.rootFor(sessionOf(body))
       json(res, 200, ctx.scheduleFor(root).remove(id) ? ok() : fail('task not found'))
     }),
     handle('schedule.toggle', (body, res) => {
-      const id = Number(str(body, 'id'))
+      const id = num(body, 'id')
       const enabled = body !== null && typeof body === 'object' && (body as Record<string, unknown>).enabled === true
       const root = ctx.fs.rootFor(sessionOf(body))
       try {
@@ -258,7 +290,7 @@ export function dataRoutes(ctx: NasRouteContext): WebRoute[] {
       }
     }),
     handle('schedule.fire', (body, res) => {
-      const id = Number(str(body, 'id'))
+      const id = num(body, 'id')
       const root = ctx.fs.rootFor(sessionOf(body))
       const scheduler = ctx.scheduleFor(root)
       const task = scheduler.list().find((item) => item.id === id)
@@ -271,7 +303,7 @@ export function dataRoutes(ctx: NasRouteContext): WebRoute[] {
       json(res, 200, { ok: true, items: ctx.notifyFor(root).list(50) })
     }),
     handle('notify.retry', (body, res) => {
-      const id = Number(str(body, 'id'))
+      const id = num(body, 'id')
       const root = ctx.fs.rootFor(sessionOf(body))
       try {
         json(res, 200, { ok: true, item: ctx.notifyFor(root).retry(id) })
@@ -280,7 +312,7 @@ export function dataRoutes(ctx: NasRouteContext): WebRoute[] {
       }
     }),
     handle('notify.resolve', (body, res) => {
-      const id = Number(str(body, 'id'))
+      const id = num(body, 'id')
       const verdict = str(body, 'verdict') === 'succeeded' ? 'succeeded' as const : 'failed' as const
       const root = ctx.fs.rootFor(sessionOf(body))
       try {
