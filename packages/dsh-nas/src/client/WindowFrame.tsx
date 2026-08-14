@@ -42,6 +42,12 @@ function WindowContent({ window, t }: WindowFrameProps): React.ReactElement | nu
   return <div className={css.windowMissing}>{t('app.unknown')}</div>
 }
 
+/** Accent color per window kind (dot before the title). */
+const KIND_COLORS: Record<string, string> = {
+  files: '#f59e0b', trash: '#64748b', search: '#0ea5e9', scheduler: '#8b5cf6',
+  review: '#10b981', settings: '#64748b', preview: '#3b82f6', office: '#3b82f6', mail: '#ef4444',
+}
+
 /** Pointer-drag state for the frame. */
 type DragMode = 'move' | 'resize' | null
 
@@ -91,6 +97,7 @@ export function WindowFrame({ window, t }: WindowFrameProps): React.ReactElement
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}
       >
+        <span className={css.windowDot} style={{ background: KIND_COLORS[window.kind] ?? '#3b82f6' }} aria-hidden="true" />
         <span className={css.windowTitle}>{window.title}</span>
         <div className={css.windowControls}>
           <button type="button" className={css.windowButton} aria-label={t('window.minimize')} title={t('window.minimize')}

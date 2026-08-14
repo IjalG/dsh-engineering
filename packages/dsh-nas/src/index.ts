@@ -103,7 +103,7 @@ export const Config = z.object({
 /**
  * Plugin entry. Registers the nas.apps service (software packages register
  * their app metadata), the /api/dsh-nas route family, desktop prefs, and the
- * live master switch (enabled → prompt section + routes).
+ * live master switch (enabled -> prompt section + routes).
  */
 export function apply(ctx: Context, config?: Config): void {
   const apps = new AppRegistry()

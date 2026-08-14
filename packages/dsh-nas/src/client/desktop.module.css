@@ -1,347 +1,416 @@
 /* dsh-nas desktop styles — both modes (panel rail + fullscreen grid), the
    window system, file manager, trash, settings, preview, search. */
 
-/* ---- desktop containers ---- */
+/* ---- desktop design system ---- */
 
 .desktop {
   position: fixed;
   z-index: 9000;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--dsh-fg, #1f2328);
+  color: var(--nas-fg, #1f2328);
+  font-family: inherit;
 }
 
 .desktopFull {
   inset: 0;
-  background: linear-gradient(160deg, #eef2f7 0%, #dde5ee 100%);
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(59, 130, 246, 0.12), transparent 60%),
+    radial-gradient(1000px 700px at 110% 110%, rgba(139, 92, 246, 0.10), transparent 55%),
+    linear-gradient(160deg, #eef2f7 0%, #dde5ee 100%);
   overflow: hidden;
 }
-
-/* ---- left dock (embedded mode) ---- */
 
 .dockDesktop {
   inset: 0;
   background: transparent;
   overflow: hidden;
+  pointer-events: none;
 }
+
+.dockDesktop > * {
+  pointer-events: auto;
+}
+
+/* ---- left dock (Ubuntu-style, pinned to the edge, vertically centered) ---- */
 
 .dock {
   position: absolute;
-  top: 12px;
-  bottom: 12px;
-  left: 12px;
-  width: 64px;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 8px 6px;
-  background: rgba(248, 250, 252, 0.92);
-  border: 1px solid rgba(31, 35, 40, 0.14);
-  border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(31, 35, 40, 0.12);
+  gap: 8px;
+  padding: 12px 8px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid rgba(31, 35, 40, 0.10);
+  border-radius: 22px;
+  box-shadow:
+    0 12px 32px rgba(31, 35, 40, 0.14),
+    0 2px 6px rgba(31, 35, 40, 0.06);
+  z-index: 9200;
+  max-height: calc(100vh - 48px);
+  overflow: visible;
 }
 
-.dockButton {
-  width: 48px;
-  height: 48px;
+.dockItem {
+  position: relative;
+  width: 54px;
+  height: 54px;
   border: none;
   background: transparent;
-  border-radius: 12px;
+  border-radius: 16px;
   cursor: pointer;
-  color: inherit;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  color: inherit;
+  transition: transform 140ms cubic-bezier(0.2, 0.8, 0.3, 1.2), background 120ms ease;
 }
 
-.dockButton:hover {
+.dockItem:hover {
   background: rgba(31, 35, 40, 0.08);
+  transform: scale(1.12);
 }
 
-.dockButtonTop {
-  color: #3b82f6;
-}
-
-.dockGlyph {
-  display: inline-flex;
+.dockItem:active {
+  transform: scale(1.02);
 }
 
 .dockSeparator {
-  width: 32px;
+  width: 34px;
   height: 1px;
-  background: rgba(31, 35, 40, 0.15);
+  background: rgba(31, 35, 40, 0.14);
   margin: 2px 0;
+  flex-shrink: 0;
 }
 
-.dockSpacer {
-  flex: 1;
+.dockDot {
+  position: absolute;
+  left: -13px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 120ms ease;
 }
 
-/* ---- show applications grid ---- */
+.dockDotOn {
+  background: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+.dockTooltip {
+  position: absolute;
+  left: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(31, 35, 40, 0.92);
+  color: #fff;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease 60ms;
+}
+
+.dockItem:hover .dockTooltip {
+  opacity: 1;
+}
+
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(31, 35, 40, 0.06);
+  box-shadow: 0 2px 6px rgba(31, 35, 40, 0.07);
+}
+
+/* ---- show applications ---- */
 
 .showApps {
   position: absolute;
   inset: 0;
-  background: rgba(31, 35, 40, 0.35);
+  z-index: 9600;
+  background: rgba(31, 35, 40, 0.32);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9500;
-  backdrop-filter: blur(2px);
+  animation: nasFade 160ms ease;
+  pointer-events: auto;
+}
+
+.showAppsPanel {
+  width: min(760px, 92vw);
+  max-height: 82vh;
+  overflow: auto;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 20px;
+  padding: 22px 24px 26px;
+  box-shadow: 0 28px 80px rgba(31, 35, 40, 0.28);
+  animation: nasPop 200ms cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+
+.showAppsTitle {
+  font-size: 15px;
+  font-weight: 650;
+  margin-bottom: 14px;
+  color: rgba(31, 35, 40, 0.85);
 }
 
 .showAppsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 14px;
-  max-width: 720px;
-  width: 90%;
-  max-height: 80vh;
-  overflow: auto;
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  box-shadow: 0 24px 64px rgba(31, 35, 40, 0.25);
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 12px;
 }
 
 .showApp {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   border: none;
   background: transparent;
-  border-radius: 12px;
-  padding: 14px 6px;
+  border-radius: 14px;
+  padding: 16px 6px 12px;
   cursor: pointer;
   color: inherit;
+  transition: background 120ms ease, transform 120ms ease;
 }
 
 .showApp:hover {
   background: rgba(31, 35, 40, 0.06);
+  transform: translateY(-2px);
 }
 
-.showAppGlyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: #f1f5f9;
-  border: 1px solid rgba(31, 35, 40, 0.1);
-  color: #3b82f6;
+.showApp .glyph {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
 }
 
 .showAppName {
   font-size: 12px;
-  max-width: 100px;
+  max-width: 96px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: rgba(31, 35, 40, 0.8);
 }
 
-/* ---- fullscreen header (restore affordance) ---- */
+/* ---- fullscreen header ---- */
 
 .fullHeader {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 40px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px;
+  padding: 0 16px;
   z-index: 9400;
   pointer-events: none;
 }
 
-.fullTitle {
+.fullBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
-  font-weight: 600;
-  color: rgba(31, 35, 40, 0.75);
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+  font-weight: 650;
+  color: rgba(31, 35, 40, 0.8);
+}
+
+.fullBrandDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
 }
 
 .fullRestore {
   pointer-events: auto;
-  width: 34px;
-  height: 30px;
-  border: 1px solid rgba(31, 35, 40, 0.18);
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 8px;
+  width: 36px;
+  height: 32px;
+  border: 1px solid rgba(31, 35, 40, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 10px;
   cursor: pointer;
-  color: inherit;
+  color: rgba(31, 35, 40, 0.75);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: background 120ms ease, transform 120ms ease;
 }
 
 .fullRestore:hover {
   background: #fff;
+  transform: translateY(-1px);
 }
 
-/* ---- desktop icons ---- */
-
-.dockIcon {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  width: 96px;
-  padding: 8px 4px;
-  border: none;
-  background: transparent;
-  border-radius: 10px;
-  cursor: pointer;
-  color: inherit;
-}
-
-.dockIcon:hover {
-  background: rgba(31, 35, 40, 0.06);
-}
-
-.dockIconGlyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
-  background: #fff;
-  border: 1px solid rgba(31, 35, 40, 0.14);
-  color: #3b82f6;
-  box-shadow: 0 2px 6px rgba(31, 35, 40, 0.08);
-}
-
-.dockIconLabel {
-  font-size: 12px;
-  max-width: 92px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-
+/* ---- desktop grid icons ---- */
 
 .desktopGrid {
   position: absolute;
-  inset: 0;
-  padding: 24px;
+  inset: 56px 0 84px;
+  padding: 18px 24px;
   display: flex;
   flex-direction: column;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   align-content: flex-start;
 }
 
-.desktopIcon {
+.gridIcon {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  width: 88px;
-  padding: 10px 4px;
+  gap: 8px;
+  width: 92px;
+  padding: 12px 4px 10px;
   border: none;
   background: transparent;
-  border-radius: 10px;
+  border-radius: 14px;
   cursor: pointer;
   color: inherit;
+  transition: background 120ms ease, transform 120ms ease;
 }
 
-.desktopIcon:hover {
-  background: rgba(31, 35, 40, 0.06);
+.gridIcon:hover {
+  background: rgba(255, 255, 255, 0.55);
+  transform: translateY(-2px);
 }
 
-.desktopIconGlyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: #fff;
-  border: 1px solid rgba(31, 35, 40, 0.14);
-  color: #3b82f6;
-  box-shadow: 0 2px 6px rgba(31, 35, 40, 0.08);
+.gridIcon .glyph {
+  width: 52px;
+  height: 52px;
+  border-radius: 15px;
 }
 
-.desktopIconLabel {
+.gridIconLabel {
   font-size: 12px;
-  max-width: 84px;
+  max-width: 88px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: rgba(31, 35, 40, 0.85);
 }
 
-/* ---- taskbar ---- */
+/* ---- taskbar (floating pill) ---- */
 
 .taskbar {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 44px;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(8px);
-  border-top: 1px solid rgba(31, 35, 40, 0.12);
-}
-
-.taskbarButton {
-  border: none;
-  background: transparent;
-  border-radius: 8px;
-  padding: 6px;
-  cursor: pointer;
-  color: inherit;
-  display: inline-flex;
-}
-
-.taskbarButton:hover {
-  background: rgba(31, 35, 40, 0.08);
-}
-
-.taskbarGlyph {
-  display: inline-flex;
-}
-
-.taskbarWindows {
-  flex: 1;
-  display: flex;
-  gap: 6px;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid rgba(31, 35, 40, 0.10);
+  border-radius: 18px;
+  box-shadow: 0 10px 28px rgba(31, 35, 40, 0.16);
+  z-index: 9300;
+  max-width: calc(100vw - 48px);
   overflow-x: auto;
 }
 
-.taskbarItem {
-  border: none;
-  background: rgba(31, 35, 40, 0.06);
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 12px;
-  cursor: pointer;
-  color: inherit;
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.taskbarInner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.taskbarItemMin {
+.taskItem {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  transition: transform 140ms cubic-bezier(0.2, 0.8, 0.3, 1.2), background 120ms ease;
+}
+
+.taskItem:hover {
+  background: rgba(31, 35, 40, 0.08);
+  transform: scale(1.1);
+}
+
+.taskItemMin {
   opacity: 0.55;
 }
 
-.taskbarClock {
+.taskTooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(31, 35, 40, 0.92);
+  color: #fff;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease 60ms;
+}
+
+.taskItem:hover .taskTooltip {
+  opacity: 1;
+}
+
+.taskClock {
   font-size: 12px;
   color: rgba(31, 35, 40, 0.65);
-  padding: 0 6px;
+  padding: 0 8px;
   font-variant-numeric: tabular-nums;
+  border-left: 1px solid rgba(31, 35, 40, 0.12);
+}
+
+.taskControl {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  color: #3b82f6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease;
+}
+
+.taskControl:hover {
+  background: rgba(59, 130, 246, 0.12);
 }
 
 /* ---- window system ---- */
@@ -356,22 +425,30 @@
   position: absolute;
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border: 1px solid rgba(31, 35, 40, 0.18);
-  border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(31, 35, 40, 0.18);
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(31, 35, 40, 0.12);
+  border-radius: 14px;
+  box-shadow:
+    0 20px 50px rgba(31, 35, 40, 0.22),
+    0 2px 8px rgba(31, 35, 40, 0.08);
   pointer-events: auto;
   min-width: 320px;
   min-height: 200px;
   overflow: hidden;
+  animation: nasWindowIn 200ms cubic-bezier(0.2, 0.9, 0.3, 1.1);
 }
 
 .windowFocused {
-  border-color: rgba(59, 130, 246, 0.55);
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow:
+    0 24px 60px rgba(31, 35, 40, 0.26),
+    0 0 0 1px rgba(59, 130, 246, 0.2),
+    0 2px 8px rgba(31, 35, 40, 0.08);
 }
 
 .windowDragging {
   user-select: none;
+  transition: none;
 }
 
 .windowMaximized {
@@ -379,59 +456,72 @@
   width: auto !important;
   height: auto !important;
   border-radius: 0;
+  border: none;
 }
 
 .windowTitlebar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 8px;
-  height: 34px;
-  background: #f4f6f9;
-  border-bottom: 1px solid rgba(31, 35, 40, 0.1);
+  gap: 10px;
+  padding: 0 10px 0 14px;
+  height: 40px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(243, 246, 249, 0.98));
+  border-bottom: 1px solid rgba(31, 35, 40, 0.08);
   cursor: default;
   user-select: none;
   flex-shrink: 0;
 }
 
+.windowDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(31, 35, 40, 0.06);
+}
+
 .windowTitle {
   flex: 1;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 620;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: rgba(31, 35, 40, 0.85);
 }
 
 .windowControls {
   display: flex;
-  gap: 2px;
+  gap: 4px;
 }
 
 .windowButton {
-  width: 26px;
-  height: 24px;
+  width: 30px;
+  height: 26px;
   border: none;
   background: transparent;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  color: rgba(31, 35, 40, 0.65);
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .windowButton:hover {
-  background: rgba(31, 35, 40, 0.08);
+  background: rgba(31, 35, 40, 0.09);
+  color: rgba(31, 35, 40, 0.9);
 }
 
 .windowClose:hover {
-  background: #e5484d;
+  background: #ef4444;
   color: #fff;
 }
 
 .winMin {
   width: 10px;
-  height: 2px;
+  height: 1.6px;
   background: currentColor;
   border-radius: 1px;
 }
@@ -439,8 +529,8 @@
 .winMax {
   width: 9px;
   height: 9px;
-  border: 1.5px solid currentColor;
-  border-radius: 2px;
+  border: 1.6px solid currentColor;
+  border-radius: 2.5px;
 }
 
 .winClose {
@@ -456,7 +546,7 @@
   left: 0;
   top: 4px;
   width: 10px;
-  height: 1.5px;
+  height: 1.6px;
   background: currentColor;
   border-radius: 1px;
 }
@@ -480,14 +570,173 @@
   position: absolute;
   right: 0;
   bottom: 0;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   cursor: nwse-resize;
 }
 
 .windowMissing {
   padding: 24px;
   color: rgba(31, 35, 40, 0.6);
+}
+
+/* ---- right-edge handle ---- */
+
+.dockHandle {
+  position: fixed;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 8900;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 46px;
+  padding: 12px 6px;
+  border: 1px solid rgba(31, 35, 40, 0.12);
+  border-right: none;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 14px 0 0 14px;
+  cursor: grab;
+  color: inherit;
+  box-shadow: -4px 0 16px rgba(31, 35, 40, 0.10);
+  touch-action: none;
+  user-select: none;
+  transition: width 160ms ease, padding 160ms ease;
+}
+
+.dockHandle:hover {
+  width: 60px;
+}
+
+.dockHandleDragging {
+  cursor: grabbing;
+}
+
+.handleGlyph {
+  display: inline-flex;
+  color: #3b82f6;
+}
+
+.handleLabel {
+  font-size: 11px;
+  writing-mode: vertical-rl;
+  letter-spacing: 0.12em;
+  color: rgba(31, 35, 40, 0.7);
+}
+
+/* ---- motion ---- */
+
+@keyframes nasFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes nasPop {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes nasWindowIn {
+  from { opacity: 0; transform: scale(0.94) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ---- dark theme ---- */
+
+@media (prefers-color-scheme: dark) {
+  .desktop {
+    color: #e5e9f0;
+  }
+
+  .desktopFull {
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(59, 130, 246, 0.14), transparent 60%),
+      radial-gradient(1000px 700px at 110% 110%, rgba(139, 92, 246, 0.12), transparent 55%),
+      linear-gradient(160deg, #171b23 0%, #0f1319 100%);
+  }
+
+  .dock,
+  .taskbar {
+    background: rgba(24, 28, 36, 0.78);
+    border-color: rgba(229, 233, 240, 0.10);
+  }
+
+  .dockItem:hover,
+  .taskItem:hover,
+  .taskControl:hover,
+  .showApp:hover {
+    background: rgba(229, 233, 240, 0.08);
+  }
+
+  .dockSeparator,
+  .taskClock {
+    border-color: rgba(229, 233, 240, 0.14);
+    color: rgba(229, 233, 240, 0.6);
+  }
+
+  .glyph {
+    background: rgba(36, 41, 51, 0.9);
+    border-color: rgba(229, 233, 240, 0.08);
+  }
+
+  .showAppsPanel,
+  .window,
+  .windowTitlebar {
+    background: rgba(24, 28, 36, 0.97);
+    border-color: rgba(229, 233, 240, 0.12);
+  }
+
+  .windowTitlebar {
+    background: linear-gradient(180deg, rgba(32, 37, 46, 0.98), rgba(27, 31, 40, 0.98));
+  }
+
+  .windowTitle,
+  .gridIconLabel,
+  .showAppName,
+  .showAppsTitle,
+  .fullBrand {
+    color: rgba(229, 233, 240, 0.88);
+  }
+
+  .gridIcon:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .dockHandle {
+    background: rgba(24, 28, 36, 0.85);
+    border-color: rgba(229, 233, 240, 0.12);
+  }
+}
+
+/* ---- small screens ---- */
+
+@media (max-width: 480px) {
+  .dock {
+    left: 4px;
+    padding: 10px 6px;
+    gap: 6px;
+  }
+
+  .dockItem {
+    width: 46px;
+    height: 46px;
+  }
+
+  .glyph {
+    width: 34px;
+    height: 34px;
+  }
+
+  .windowLayer {
+    left: 62px !important;
+  }
+
+  .window {
+    min-width: 0;
+  }
 }
 
 /* ---- file manager ---- */
@@ -827,37 +1076,6 @@
   font-size: 11.5px;
   color: rgba(31, 35, 40, 0.5);
   margin-left: auto;
-}
-
-/* small screens: keep the panel usable at 390px */
-@media (max-width: 480px) {
-  .dock {
-    width: 52px;
-    left: 6px;
-    padding: 6px 4px;
-  }
-
-  .dockButton {
-    width: 40px;
-    height: 40px;
-  }
-
-  .windowLayer {
-    left: 60px !important;
-  }
-
-  .window {
-    min-width: 0;
-  }
-
-  .desktopGrid {
-    padding: 12px;
-    gap: 4px;
-  }
-
-  .desktopIcon {
-    width: 76px;
-  }
 }
 
 /* ---- search + scheduler ---- */

@@ -104,7 +104,7 @@ export function SchedulerApp({ t }: SchedulerAppProps): React.ReactElement {
               <span className={[css.schedDot, task.enabled ? css.schedDotOn : ''].join(' ')} aria-hidden="true" />
               <span className={css.fmName}>{task.name}</span>
               <span className={css.fmMeta}>{task.cron}</span>
-              <span className={css.fmMeta}>{task.actionType}{task.actionTarget !== '' ? ` → ${task.actionTarget}` : ''}</span>
+              <span className={css.fmMeta}>{task.actionType}{task.actionTarget !== '' ? ` -> ${task.actionTarget}` : ''}</span>
             </div>
             <div className={css.fmRowActions}>
               <button type="button" className={css.fmMini} title={t('scheduler.fire')} onClick={() => void fire(task)}>F</button>
