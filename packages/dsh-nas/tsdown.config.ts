@@ -5,7 +5,7 @@
  * node-half lib/ (host desktop services + /api/nas routes) plus the browser
  * bundle lib/client.js (closure-factory artifact, CSS Modules inlined).
  */
-import { clientBundle } from '../../../dsh-web-ui/shared/tsdown.client.ts'
+import { clientBundle } from '../../shared/tsdown.client.ts'
 
 export default clientBundle('@linxin666/dsh-nas', ['src/index.ts'], {
   libExternal: [

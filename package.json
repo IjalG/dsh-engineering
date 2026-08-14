@@ -3,5 +3,9 @@
   "private": true,
   "description": "dsh-engineering 插件全家桶 workspace：工程能力插件集合 + 统一管理面板",
   "version": "0.1.0",
-  "packageManager": "pnpm@11.7.0"
+  "packageManager": "pnpm@11.7.0",
+  "devDependencies": {
+    "lightningcss": "^1.32.0",
+    "tsdown": "^0.22.2"
+  }
 }
