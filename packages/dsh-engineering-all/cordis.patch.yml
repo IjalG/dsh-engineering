@@ -14,3 +14,8 @@
 - insert:
     - id: nas
       name: '@linxin666/dsh-nas'
+
+# dsh-office 软件包（文档四件套应用）
+- insert:
+    - id: office
+      name: '@linxin666/dsh-office'

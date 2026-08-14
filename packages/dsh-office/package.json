@@ -1,7 +1,7 @@
 {
-  "name": "@linxin666/dsh-engineering-all",
-  "description": "dsh-engineering 聚合包：工程能力插件全家桶 + 统一管理面板（设置 > 插件 > 插件配置）。首个成员：dsh-beyond-workscope（外部成员，注册与配置仍走 dsh-web-ui 渠道，本包只做概览与入口，避免重复注册冲突）。",
-  "version": "0.1.1",
+  "name": "@linxin666/dsh-office",
+  "description": "dsh-nas 软件包：Office 文档四件套应用——Word（富文本）/Excel（网格）/PPT/PDF 预览编辑与转换、LibreOffice 转 PDF、OCR 扫描识别（独立视觉端点）。注册为 dsh-nas 桌面应用。",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
@@ -23,26 +23,30 @@
     "build": "tsdown",
     "prepare": "tsdown",
     "watch": "tsdown --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@linxin666/dsh-beyond-workscope-eng": "link:../dsh-beyond-workscope-eng",
-    "@linxin666/dsh-nas": "link:../dsh-nas",
-    "@linxin666/dsh-office": "link:../dsh-office"
+    "docx": "^9.1.0",
+    "exceljs": "^4.4.0",
+    "mammoth": "^1.8.0",
+    "pdf-lib": "^1.17.1",
+    "@tiptap/react": "^2.10.0",
+    "@tiptap/starter-kit": "^2.10.0",
+    "@tiptap/pm": "^2.10.0"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-client-locale": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-host-webserver": "^0.1.0-rc.6"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-client-locale": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-ui-settings": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-host-webserver": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-session": "^0.1.0-rc.6",
+    "@types/node": "^22.10.0",
     "@types/react": "~18.3.1",
     "@types/react-dom": "^18.3.5",
     "lightningcss": "1.32.0",
@@ -50,7 +54,7 @@
     "react-dom": "^18.3.1",
     "tsdown": "0.22.2",
     "typescript": "~5.7.2",
-    "@linxin666/dsh-client-ui-web-ui-settings": "link:../../../dsh-web-ui/packages/dsh-web-ui-settings"
+    "vitest": "^3.0.0"
   },
   "license": "BSD-3-Clause"
 }

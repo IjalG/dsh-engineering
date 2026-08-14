@@ -1,0 +1,6 @@
+# dsh-office software package: registers as a dsh-nas desktop app (no plugin
+# row of its own — the nas system hosts the app window). The patch is a
+# placeholder so the package can be installed standalone via a bundle layer.
+- insert:
+    - id: office
+      name: '@linxin666/dsh-office'

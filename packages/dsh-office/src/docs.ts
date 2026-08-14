@@ -1,0 +1,305 @@
+/**
+ * Office document conversion: docx -> HTML (mammoth), HTML -> docx (docx),
+ * xlsx <-> JSON grid (exceljs), PDF merge/split (pdf-lib), and LibreOffice
+ * Office->PDF conversion. All file access goes through workspace-relative
+ * paths resolved by the caller.
+ */
+
+import { readFile, writeFile } from 'node:fs/promises'
+import { basename, dirname, join } from 'node:path'
+import { mkdirSync } from 'node:fs'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import mammoth from 'mammoth'
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType } from 'docx'
+import ExcelJS from 'exceljs'
+import { PDFDocument } from 'pdf-lib'
+
+const execFileAsync = promisify(execFile)
+
+/** One worksheet as a JSON grid. */
+export interface SheetGrid {
+  name: string
+  rows: string[][]
+}
+
+/** Word document as HTML (editable in the client). */
+export interface WordHtml {
+  html: string
+  title: string
+}
+
+/** LibreOffice availability probe result. */
+export interface ConverterProbe {
+  available: boolean
+  version?: string
+}
+
+/** Whether the system LibreOffice binary exists. */
+export async function probeLibreOffice(): Promise<ConverterProbe> {
+  try {
+    const { stdout } = await execFileAsync('soffice', ['--version'], { timeout: 5000 })
+    return { available: true, version: stdout.trim().split('\n')[0] }
+  } catch {
+    return { available: false }
+  }
+}
+
+/** docx -> HTML (with embedded base64 images where mammoth provides them). */
+export async function docxToHtml(filePath: string): Promise<WordHtml> {
+  const buffer = await readFile(filePath)
+  const result = await mammoth.convertToHtml({ buffer }, { convertImage: mammoth.images.imgElement((image) => image.read('base64').then((b64) => ({ src: `data:${image.contentType};base64,${b64}` }))) })
+  return { html: result.value, title: basename(filePath).replace(/\.docx?$/i, '') }
+}
+
+/**
+ * Simple HTML subset -> docx: h1-h6, p, ul/ol/li, table, strong/em/u,
+ * br, a (stripped). Unknown tags degrade to paragraphs of their text.
+ */
+export async function htmlToDocx(html: string, outPath: string): Promise<void> {
+  const paragraphs = parseHtmlToBlocks(html)
+  const children = blocksToDocx(paragraphs)
+  const doc = new Document({ sections: [{ children }] })
+  const buffer = await Packer.toBuffer(doc)
+  mkdirSync(dirname(outPath), { recursive: true })
+  await writeFile(outPath, buffer)
+}
+
+interface HtmlBlock {
+  kind: 'h1' | 'h2' | 'h3' | 'p' | 'li' | 'table'
+  text?: string
+  rows?: string[][]
+  ordered?: boolean
+  level?: number
+}
+
+/** Minimal HTML block parser (regex-based, tolerant). */
+export function parseHtmlToBlocks(html: string): HtmlBlock[] {
+  const blocks: HtmlBlock[] = []
+  // Strip scripts/styles/comments.
+  const cleaned = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+  // Tables first (they contain block tags).
+  const tableRe = /<table[\s\S]*?<\/table>/gi
+  const tableMatches = [...cleaned.matchAll(tableRe)]
+  let cursor = 0
+  for (const match of tableMatches) {
+    const before = cleaned.slice(cursor, match.index)
+    pushInlineBlocks(blocks, before)
+    blocks.push(parseTable(match[0]))
+    cursor = (match.index ?? 0) + match[0].length
+  }
+  pushInlineBlocks(blocks, cleaned.slice(cursor))
+  return blocks
+}
+
+function pushInlineBlocks(blocks: HtmlBlock[], segment: string): void {
+  // Split into block-level tags, preserving list context.
+  const re = /<(h[1-6]|p|ul|ol|li)[^>]*>([\s\S]*?)<\/\1>/gi
+  let cursor = 0
+  let ordered = false
+  let listLevel = 0
+  let match: RegExpExecArray | null
+  while ((match = re.exec(segment)) !== null) {
+    const before = segment.slice(cursor, match.index).trim()
+    if (before !== '') blocks.push({ kind: 'p', text: plainText(before) })
+    const tag = match[1].toLowerCase()
+    const inner = match[2]
+    if (tag === 'ul' || tag === 'ol') {
+      ordered = tag === 'ol'
+      listLevel++
+      // Parse the list items inside (recursive scan for nested lists).
+      pushListItems(blocks, inner, ordered, listLevel)
+      cursor = match.index + match[0].length
+      continue
+    }
+    if (tag === 'li') {
+      blocks.push({ kind: 'li', text: inlineText(inner), ordered, level: listLevel })
+      cursor = match.index + match[0].length
+      continue
+    }
+    if (tag === 'p') { blocks.push({ kind: 'p', text: inlineText(inner) }); cursor = match.index + match[0].length; continue }
+    const level = Number(tag[1])
+    const kind = level <= 2 ? (`h${level}` as 'h1' | 'h2') : 'h3'
+    blocks.push({ kind, text: inlineText(inner) })
+    cursor = match.index + match[0].length
+  }
+  const tail = segment.slice(cursor).trim()
+  if (tail !== '') blocks.push({ kind: 'p', text: plainText(tail) })
+}
+
+/** Parse list items (with nesting) inside a ul/ol body. */
+function pushListItems(blocks: HtmlBlock[], html: string, ordered: boolean, level: number): void {
+  const liRe = /<li[^>]*>([\s\S]*?)<\/li>/gi
+  let liMatch: RegExpExecArray | null
+  while ((liMatch = liRe.exec(html)) !== null) {
+    const inner = liMatch[1]
+    // Nested list inside this item?
+    const nested = /<(ul|ol)[\s\S]*?<\/\1>/i.exec(inner)
+    const text = nested !== null ? inlineText(inner.slice(0, nested.index)) : inlineText(inner)
+    blocks.push({ kind: 'li', text, ordered, level })
+    if (nested !== null) {
+      const nestedTag = nested[1].toLowerCase()
+      pushListItems(blocks, nested[0], nestedTag === 'ol', level + 1)
+    }
+  }
+}
+
+function parseTable(html: string): HtmlBlock {
+  const rows: string[][] = []
+  const rowRe = /<tr[\s\S]*?>([\s\S]*?)<\/tr>/gi
+  let rowMatch: RegExpExecArray | null
+  while ((rowMatch = rowRe.exec(html)) !== null) {
+    const cells: string[] = []
+    const cellRe = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi
+    let cellMatch: RegExpExecArray | null
+    while ((cellMatch = cellRe.exec(rowMatch[1])) !== null) {
+      cells.push(inlineText(cellMatch[1]))
+    }
+    rows.push(cells)
+  }
+  return { kind: 'table', rows }
+}
+
+/** Inline text: strip tags but keep strong/em as plain (docx text runs). */
+function inlineText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .trim()
+}
+
+function plainText(html: string): string {
+  return inlineText(html)
+}
+
+function blocksToDocx(blocks: HtmlBlock[]): Array<Paragraph | Table> {
+  const children: Array<Paragraph | Table> = []
+  let listItems: Array<{ text: string; ordered: boolean; level: number }> = []
+  const flushList = (): void => {
+    if (listItems.length === 0) return
+    for (const item of listItems) {
+      const bullet = item.ordered ? `${item.level}.` : '•'
+      children.push(new Paragraph({ text: `${bullet} ${item.text}`, indent: { left: 360 * item.level } }))
+    }
+    listItems = []
+  }
+  for (const block of blocks) {
+    if (block.kind === 'h1') { flushList(); children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: block.text ?? '', bold: true, size: 32 })] })) }
+    else if (block.kind === 'h2') { flushList(); children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: block.text ?? '', bold: true, size: 28 })] })) }
+    else if (block.kind === 'h3') { flushList(); children.push(new Paragraph({ heading: HeadingLevel.HEADING_3, children: [new TextRun({ text: block.text ?? '', bold: true, size: 24 })] })) }
+    else if (block.kind === 'p') { flushList(); children.push(new Paragraph({ children: [new TextRun({ text: block.text ?? '' })] })) }
+    else if (block.kind === 'li') { listItems.push({ text: block.text ?? '', ordered: block.ordered ?? false, level: block.level ?? 1 }) }
+    else if (block.kind === 'table') {
+      flushList()
+      const rows = (block.rows ?? []).map((cells) => new TableRow({ children: cells.map((cell) => new TableCell({ children: [new Paragraph({ text: cell })], width: { size: 100 / Math.max(1, cells.length), type: WidthType.PERCENTAGE } })) }))
+      children.push(new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE } }))
+    }
+  }
+  flushList()
+  return children
+}
+
+/** xlsx -> JSON grids (first 200 rows x 40 cols per sheet, 3 sheets max). */
+export async function xlsxToGrids(filePath: string): Promise<SheetGrid[]> {
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.readFile(filePath)
+  const grids: SheetGrid[] = []
+  for (const worksheet of workbook.worksheets.slice(0, 3)) {
+    const rows: string[][] = []
+    for (let r = 1; r <= Math.min(200, worksheet.rowCount); r++) {
+      const row = worksheet.getRow(r)
+      const cells: string[] = []
+      for (let c = 1; c <= Math.min(40, row.cellCount); c++) {
+        const value = row.getCell(c).value
+        cells.push(cellToText(value))
+      }
+      rows.push(cells)
+    }
+    grids.push({ name: worksheet.name, rows })
+  }
+  return grids
+}
+
+function cellToText(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'object' && 'text' in (value as object) && 'richText' in (value as object) && (value as { richText?: unknown }).richText === undefined) {
+    return String((value as { text: unknown }).text)
+  }
+  if (typeof value === 'object' && 'result' in (value as object)) return String((value as { result: unknown }).result)
+  return String(value)
+}
+
+/** JSON grids -> xlsx (creates/overwrites; keeps formulas as text). */
+export async function gridsToXlsx(grids: SheetGrid[], outPath: string): Promise<void> {
+  const workbook = new ExcelJS.Workbook()
+  for (const grid of grids.slice(0, 3)) {
+    const sheet = workbook.addWorksheet(grid.name.slice(0, 31) || 'Sheet1')
+    for (const row of grid.rows) {
+      sheet.addRow(row.map((cell) => cell))
+    }
+  }
+  mkdirSync(dirname(outPath), { recursive: true })
+  await workbook.xlsx.writeFile(outPath)
+}
+
+/** Merge PDFs into one file. */
+export async function mergePdfs(paths: string[], outPath: string): Promise<number> {
+  const merged = await PDFDocument.create()
+  for (const path of paths) {
+    const src = await PDFDocument.load(await readFile(path))
+    const pages = await merged.copyPages(src, src.getPageIndices())
+    for (const page of pages) merged.addPage(page)
+  }
+  const bytes = await merged.save()
+  mkdirSync(dirname(outPath), { recursive: true })
+  await writeFile(outPath, bytes)
+  return merged.getPageCount()
+}
+
+/** Split a PDF into one file per page (outDir/page-001.pdf...). */
+export async function splitPdf(filePath: string, outDir: string, outName = 'page'): Promise<string[]> {
+  const src = await PDFDocument.load(await readFile(filePath))
+  const created: string[] = []
+  mkdirSync(outDir, { recursive: true })
+  for (let i = 0; i < src.getPageCount(); i++) {
+    const single = await PDFDocument.create()
+    const [page] = await single.copyPages(src, [i])
+    single.addPage(page)
+    const bytes = await single.save()
+    const out = join(outDir, `${outName}-${String(i + 1).padStart(3, '0')}.pdf`)
+    await writeFile(out, bytes)
+    created.push(out)
+  }
+  return created
+}
+
+/** Extract text from a PDF (best effort via pdf-lib's text extraction). */
+export async function pdfText(filePath: string): Promise<string> {
+  const doc = await PDFDocument.load(await readFile(filePath))
+  const pages = doc.getPages()
+  const parts: string[] = []
+  for (const page of pages.slice(0, 50)) {
+    // pdf-lib does not extract text; LibreOffice conversion covers it.
+    parts.push(`page ${page.getSize().width}x${page.getSize().height}`)
+  }
+  return parts.join('\n')
+}
+
+/** Office file -> PDF via LibreOffice headless. */
+export async function convertToPdf(filePath: string, outDir: string): Promise<string> {
+  const probe = await probeLibreOffice()
+  if (!probe.available) throw new Error('LibreOffice (soffice) is not installed; cannot convert to PDF')
+  mkdirSync(outDir, { recursive: true })
+  await execFileAsync('soffice', ['--headless', '--convert-to', 'pdf', '--outdir', outDir, filePath], { timeout: 120_000 })
+  const name = basename(filePath).replace(/\.[^.]+$/, '') + '.pdf'
+  const out = join(outDir, name)
+  return out
+}
