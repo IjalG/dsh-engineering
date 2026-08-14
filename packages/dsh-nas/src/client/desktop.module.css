@@ -106,6 +106,24 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
 }
 
+.dockBadge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 650;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-shadow: 0 1px 3px rgba(31, 35, 40, 0.3);
+}
+
 .dockTooltip {
   position: absolute;
   left: calc(100% + 14px);
@@ -122,7 +140,25 @@
   transition: opacity 120ms ease 60ms;
 }
 
-.dockItem:hover .dockTooltip {
+.dockItem:hover .dockBadge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 650;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-shadow: 0 1px 3px rgba(31, 35, 40, 0.3);
+}
+
+.dockTooltip {
   opacity: 1;
 }
 

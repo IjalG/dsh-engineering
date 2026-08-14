@@ -19,6 +19,7 @@ import { ExcelApp } from './ExcelApp.tsx'
 import { PdfApp } from './PdfApp.tsx'
 import { PptApp } from './PptApp.tsx'
 import { OfficeApi, setOfficeSessionId } from './api.ts'
+import { ALL_TEMPLATES, type TemplateDef } from './templates.ts'
 import css from './office.module.css'
 
 export interface OfficeWindowProps {
@@ -59,12 +60,14 @@ function extOf(path: string): string {
   return dot >= 0 ? path.slice(dot + 1).toLowerCase() : ''
 }
 
-/** Welcome page: create a new office document. */
-function Welcome({ t, onOpen }: { t: Translate<OfficeKey>; onOpen: (path: string) => void }): React.ReactElement {
+/** Welcome page: create a new office document (blank or from a template). */
+function Welcome({ t, onTemplate }: { t: Translate<OfficeKey>; onTemplate: (template: TemplateDef) => void }): React.ReactElement {
   const [newName, setNewName] = useState('')
-  const create = (kind: 'docx' | 'xlsx'): void => {
-    const name = newName.trim() === '' ? `untitled-${Date.now()}.${kind}` : newName.trim().endsWith(`.${kind}`) ? newName.trim() : `${newName.trim()}.${kind}`
-    onOpen(name)
+  const create = (kind: 'docx' | 'xlsx' | 'pptx', name: string): void => {
+    const finalName = name.trim() === '' ? `untitled-${Date.now()}.${kind}` : name.trim().endsWith(`.${kind}`) ? name.trim() : `${name.trim()}.${kind}`
+    if (kind === 'docx') onTemplate({ id: 'word-blank', name: '空白文档', kind: 'docx', defaultName: finalName, html: '<p></p>' })
+    else if (kind === 'xlsx') onTemplate({ id: 'xlsx-blank', name: '空白工作簿', kind: 'xlsx', defaultName: finalName, grids: [{ name: 'Sheet1', rows: [['']] }] })
+    else onTemplate({ id: 'pptx-blank', name: '空白演示', kind: 'pptx', defaultName: finalName, slides: [{ title: '', body: [], layout: 'content' }] })
   }
   return (
     <div className={css.welcome}>
@@ -73,8 +76,18 @@ function Welcome({ t, onOpen }: { t: Translate<OfficeKey>; onOpen: (path: string
         <input className={css.input} placeholder="name" value={newName} onChange={(event) => setNewName(event.target.value)} />
       </div>
       <div className={css.welcomeRow}>
-        <button type="button" className={css.button} onClick={() => create('docx')}>{t('welcome.word')}</button>
-        <button type="button" className={css.button} onClick={() => create('xlsx')}>{t('welcome.sheet')}</button>
+        <button type="button" className={css.button} onClick={() => create('docx', newName)}>{t('welcome.word')}</button>
+        <button type="button" className={css.button} onClick={() => create('xlsx', newName)}>{t('welcome.sheet')}</button>
+        <button type="button" className={css.button} onClick={() => create('pptx', newName)}>{t('welcome.ppt')}</button>
+      </div>
+      <div className={css.templateTitle}>{t('template.title')}</div>
+      <div className={css.templateGrid}>
+        {ALL_TEMPLATES.map((template) => (
+          <button key={template.id} type="button" className={css.templateCard} onClick={() => onTemplate(template)}>
+            <span className={css.templateBadge}>{template.kind.toUpperCase()}</span>
+            <span className={css.templateName}>{template.name}</span>
+          </button>
+        ))}
       </div>
       <div className={css.welcomeHint}>{t('welcome.open')}</div>
     </div>
@@ -87,6 +100,7 @@ export function OfficeWindow({ window, t, sessionId }: OfficeWindowProps): React
   const [currentPath, setCurrentPath] = useState<string | undefined>(window.path)
   const [recent, setRecent] = useState<Array<{ path: string; name: string }>>(loadRecent())
   const [browse, setBrowse] = useState(false)
+  const [error, setError] = useState<string | undefined>()
   const [browseDir, setBrowseDir] = useState('')
   const [entries, setEntries] = useState<Array<{ path: string; name: string; kind: 'file' | 'dir' }>>([])
 
@@ -121,6 +135,21 @@ export function OfficeWindow({ window, t, sessionId }: OfficeWindowProps): React
     setRecent(loadRecent())
     setCurrentPath(path)
     setBrowse(false)
+  }
+
+  /** Materialize a template as a workspace file, then open it. */
+  const createFromTemplate = async (template: TemplateDef): Promise<void> => {
+    const name = globalThis.prompt(`${t('template.namePrompt')}`, `${template.defaultName}.${template.kind}`)
+    if (name === null || name.trim() === '') return
+    const target = name.trim().endsWith(`.${template.kind}`) ? name.trim() : `${name.trim()}.${template.kind}`
+    try {
+      if (template.kind === 'docx') await api.wordSave(target, template.html ?? '<p></p>')
+      else if (template.kind === 'xlsx') await api.sheetSave(target, template.grids ?? [{ name: 'Sheet1', rows: [['']] }])
+      else await api.pptSave(target, template.slides ?? [{ title: '', body: [], layout: 'content' }])
+      openPath(target)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
   }
 
   if (currentPath === undefined) {
@@ -162,7 +191,7 @@ export function OfficeWindow({ window, t, sessionId }: OfficeWindowProps): React
             ))}
           </div>
         )}
-        <Welcome t={t} onOpen={openPath} />
+        <Welcome t={t} onTemplate={(template) => void createFromTemplate(template)} />
       </div>
     )
   }

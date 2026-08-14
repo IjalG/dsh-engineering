@@ -1036,3 +1036,65 @@
   padding: 5px 8px;
   border-radius: 6px;
 }
+
+/* ---- templates ---- */
+
+.templateTitle {
+  font-size: 13px;
+  font-weight: 650;
+  margin-top: 8px;
+  color: rgba(31, 35, 40, 0.8);
+}
+
+.templateGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.templateCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px solid rgba(31, 35, 40, 0.12);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  color: inherit;
+  transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+
+.templateCard:hover {
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 4px 14px rgba(31, 35, 40, 0.1);
+  transform: translateY(-2px);
+}
+
+.templateBadge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+
+.templateName {
+  font-size: 12.5px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .templateCard {
+    background: #232833;
+    border-color: rgba(229, 233, 240, 0.12);
+  }
+
+  .templateTitle {
+    color: rgba(229, 233, 240, 0.8);
+  }
+}

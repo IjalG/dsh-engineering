@@ -195,8 +195,8 @@ function AppGlyph({ app }: { app: NasAppMeta }): React.ReactElement {
   )
 }
 
-/** Dock icon: icon + running indicator dot + tooltip label. */
-function DockItem({ app, running }: { app: NasAppMeta; running: boolean }): React.ReactElement {
+/** Dock icon: icon + running indicator dot + tooltip label + optional badge. */
+function DockItem({ app, running, badge }: { app: NasAppMeta; running: boolean; badge?: number }): React.ReactElement {
   return (
     <button
       type="button"
@@ -207,6 +207,7 @@ function DockItem({ app, running }: { app: NasAppMeta; running: boolean }): Reac
       <AppGlyph app={app} />
       <span className={css.dockTooltip}>{app.name}</span>
       <span className={[css.dockDot, running ? css.dockDotOn : ''].join(' ')} aria-hidden="true" />
+      {badge !== undefined && badge > 0 && <span className={css.dockBadge}>{badge > 99 ? '99+' : String(badge)}</span>}
     </button>
   )
 }
@@ -356,8 +357,31 @@ function DockDesktop({ snapshot, t }: { snapshot: DesktopSnapshot; t: Translate<
   const inset = useRightInset()
   const sidebarW = useSidebarWidth()
   const [showApps, setShowApps] = useState(false)
+  const [pendingReviews, setPendingReviews] = useState(0)
   const apps = [...systemApps(t), ...snapshot.apps]
   const runningKinds = new Set(snapshot.windows.map((window) => window.kind))
+
+  // Poll the pending-review count for the Changes icon badge.
+  useEffect(() => {
+    const poll = (): void => {
+      void (async () => {
+        try {
+          const response = await fetch('/api/dsh-nas/review.list', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ status: 'pending' }),
+          })
+          const result = (await response.json()) as { items?: unknown[] }
+          setPendingReviews((result.items ?? []).length)
+        } catch {
+          // quiet
+        }
+      })()
+    }
+    poll()
+    const timer = setInterval(poll, 30000)
+    return () => clearInterval(timer)
+  }, [])
 
   return (
     <div className={[css.desktop, css.dockDesktop].join(' ')} data-nas-desktop="panel">
@@ -367,7 +391,7 @@ function DockDesktop({ snapshot, t }: { snapshot: DesktopSnapshot; t: Translate<
           <span className={css.dockTooltip}>{t('taskbar.open')}</span>
         </button>
         <div className={css.dockSeparator} />
-        {apps.map((app) => <DockItem key={app.id} app={app} running={runningKinds.has(app.windowKind)} />)}
+        {apps.map((app) => <DockItem key={app.id} app={app} running={runningKinds.has(app.windowKind)} badge={app.windowKind === 'review' ? pendingReviews : undefined} />)}
         <div className={css.dockSeparator} />
         <button type="button" className={css.dockItem} onClick={() => desktopStore.setMode('fullscreen')} aria-label={t('desktop.expand')} title={t('desktop.expand')}>
           <span className={css.glyph} style={{ color: ICONS.expand!.color }} dangerouslySetInnerHTML={{ __html: ICONS.expand!.svg }} />
