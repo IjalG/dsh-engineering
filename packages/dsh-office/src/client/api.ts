@@ -2,7 +2,7 @@
  * Browser API for /api/dsh-office.
  */
 
-import type { SheetGrid, SheetMerge, SlideText } from '../docs.ts'
+import type { SheetGrid, SheetFreeze, SheetMerge, SlideText } from '../docs.ts'
 import type { OcrPage } from '../ocr.ts'
 
 let ACTIVE_SESSION: string | undefined
@@ -42,7 +42,7 @@ async function call<T>(action: string, body: Record<string, unknown> = {}): Prom
 }
 
 export interface WordOpenResult { ok: boolean; html: string; title: string; error?: string }
-export interface SheetOpenResult { ok: boolean; grids: SheetGrid[]; merges?: SheetMerge[]; error?: string }
+export interface SheetOpenResult { ok: boolean; grids: SheetGrid[]; merges?: SheetMerge[]; freezes?: SheetFreeze[]; error?: string }
 export interface OcrResult { ok: boolean; page: OcrPage; untrusted: boolean; model?: string; configured: boolean; error?: string }
 export interface ProbeResult { ok: boolean; libreOffice: { available: boolean; version?: string } }
 
@@ -50,9 +50,9 @@ export interface ProbeResult { ok: boolean; libreOffice: { available: boolean; v
 export class OfficeApi {
   probe(): Promise<ProbeResult> { return call('probe') }
   wordOpen(path: string): Promise<WordOpenResult> { return call('word.open', { path }) }
-  wordSave(path: string, html: string): Promise<{ ok: boolean; error?: string }> { return call('word.save', { path, html }) }
+  wordSave(path: string, html: string, pageSetup?: { size?: 'A4' | 'Letter'; orientation?: 'portrait' | 'landscape'; margins?: 'normal' | 'narrow' | 'wide' }): Promise<{ ok: boolean; error?: string }> { return call('word.save', { path, html, pageSetup }) }
   sheetOpen(path: string): Promise<SheetOpenResult> { return call('sheet.open', { path }) }
-  sheetSave(path: string, grids: SheetGrid[], merges: SheetMerge[] = []): Promise<{ ok: boolean; error?: string }> { return call('sheet.save', { path, grids, merges }) }
+  sheetSave(path: string, grids: SheetGrid[], merges: SheetMerge[] = [], freezes: SheetFreeze[] = []): Promise<{ ok: boolean; error?: string }> { return call('sheet.save', { path, grids, merges, freezes }) }
   pdfMerge(paths: string[], outPath: string): Promise<{ ok: boolean; pages?: number; error?: string }> { return call('pdf.merge', { paths, outPath }) }
   pdfSplit(path: string): Promise<{ ok: boolean; files?: string[]; error?: string }> { return call('pdf.split', { path }) }
   convert(path: string): Promise<{ ok: boolean; outPath?: string; error?: string }> { return call('convert', { path }) }

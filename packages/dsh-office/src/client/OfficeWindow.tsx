@@ -3,7 +3,7 @@
  * Excel (grid) or PDF tools; no path shows the new-document welcome page.
  */
 
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 /** Window shape the nas desktop passes (structural; no cross-package type dep). */
 export interface NasWindowLike {
@@ -62,24 +62,34 @@ export function OfficeWindow({ window, t, sessionId }: OfficeWindowProps): React
   useEffect(() => { setOfficeSessionId(sessionId) }, [sessionId])
   const [currentPath, setCurrentPath] = useState<string | undefined>(window.path)
   const [browse, setBrowse] = useState(false)
-  const [files, setFiles] = useState<Array<{ path: string; name: string }>>([])
+  const [browseDir, setBrowseDir] = useState('')
+  const [entries, setEntries] = useState<Array<{ path: string; name: string; kind: 'file' | 'dir' }>>([])
+
+  const listDir = useCallback(async (dir: string): Promise<void> => {
+    try {
+      const response = await fetch('/api/dsh-nas/fs.list', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ path: dir, sessionId: document.querySelector<HTMLElement>('[data-session-id]')?.dataset.sessionId }),
+      })
+      const result = (await response.json()) as { entries?: Array<{ path: string; name: string; kind: string }> }
+      const all = (result.entries ?? []).map((entry) => ({ path: entry.path, name: entry.name, kind: entry.kind === 'dir' ? 'dir' as const : 'file' as const }))
+      setEntries(all.filter((entry) => entry.kind === 'dir' || /\.(docx|xlsx|pptx|pdf)$/i.test(entry.name)))
+    } catch {
+      setEntries([])
+    }
+  }, [])
 
   useEffect(() => {
     if (!browse) return
-    void (async () => {
-      try {
-        const response = await fetch('/api/dsh-nas/fs.list', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ sessionId: document.querySelector<HTMLElement>('[data-session-id]')?.dataset.sessionId }),
-        })
-        const result = (await response.json()) as { entries?: Array<{ path: string; name: string; kind: string }> }
-        setFiles((result.entries ?? []).filter((entry) => entry.kind === 'file' && /\.(docx|xlsx|pptx|pdf)$/i.test(entry.name)))
-      } catch {
-        setFiles([])
-      }
-    })()
-  }, [browse])
+    void listDir(browseDir)
+  }, [browse, browseDir, listDir])
+
+  const parentDir = (dir: string): string => {
+    if (dir === '') return ''
+    const idx = dir.lastIndexOf('/')
+    return idx <= 0 ? '' : dir.slice(0, idx)
+  }
 
   if (currentPath === undefined) {
     return (
@@ -89,9 +99,22 @@ export function OfficeWindow({ window, t, sessionId }: OfficeWindowProps): React
         </div>
         {browse && (
           <div className={css.fileList}>
-            {files.map((file) => (
-              <button key={file.path} type="button" className={css.fileRow} onClick={() => { setCurrentPath(file.path); setBrowse(false) }}>
-                {file.name}
+            <div className={css.browseBar}>
+              <button type="button" className={css.button} disabled={browseDir === ''} onClick={() => setBrowseDir(parentDir(browseDir))}>↑</button>
+              <span className={css.path}>{browseDir === '' ? '/' : `/${browseDir}`}</span>
+            </div>
+            {entries.map((entry) => (
+              <button
+                key={entry.path}
+                type="button"
+                className={css.fileRow}
+                onClick={() => {
+                  if (entry.kind === 'dir') setBrowseDir(entry.path)
+                  else { setCurrentPath(entry.path); setBrowse(false) }
+                }}
+              >
+                <span className={css.fileKind}>{entry.kind === 'dir' ? '▸ ' : ''}</span>
+                {entry.name}
               </button>
             ))}
           </div>

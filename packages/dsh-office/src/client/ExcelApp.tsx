@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { HyperFormula } from 'hyperformula'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import type { OfficeKey } from './locales.ts'
-import type { SheetGrid, SheetMerge } from '../docs.ts'
+import type { SheetFreeze, SheetGrid, SheetMerge } from '../docs.ts'
 import { OfficeApi } from './api.ts'
 import css from './office.module.css'
 
@@ -69,6 +69,8 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
   const [colWidths, setColWidths] = useState<number[]>([])
   const [formats, setFormats] = useState<FormatMap>({})
   const [merges, setMerges] = useState<SheetMerge[]>([])
+  const [freezes, setFreezes] = useState<SheetFreeze[]>([])
+  const [chartOpen, setChartOpen] = useState(false)
   const [filter, setFilter] = useState<{ col: number; value: string } | undefined>()
   const [selected, setSelected] = useState<{ col: number; row: number }>({ col: 0, row: 0 })
   const [status, setStatus] = useState('')
@@ -84,6 +86,7 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
       if (result.grids.length === 0) result.grids.push({ name: 'Sheet1', rows: [['']] })
       setGrids(result.grids)
       setMerges(result.merges ?? [])
+      setFreezes(result.freezes ?? [])
       setActive(0)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -242,10 +245,21 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
     setMerges((prev) => prev.filter((m) => !(m.sheet === grid.name && row + 1 >= m.r1 && row + 1 <= m.r2 && col + 1 >= m.c1 && col + 1 <= m.c2)))
   }
 
+  /** Toggle freezing the header row of the active sheet. */
+  const toggleFreeze = (): void => {
+    if (grid === undefined) return
+    const existing = freezes.find((f) => f.sheet === grid.name)
+    if (existing !== undefined && existing.rows > 0) {
+      setFreezes((prev) => prev.filter((f) => f.sheet !== grid.name))
+    } else {
+      setFreezes((prev) => [...prev.filter((f) => f.sheet !== grid.name), { sheet: grid.name, rows: 1, cols: 0 }])
+    }
+  }
+
   const save = async (): Promise<void> => {
     setStatus(t('editor.saving'))
     try {
-      const result = await api.sheetSave(path, grids, merges)
+      const result = await api.sheetSave(path, grids, merges, freezes)
       if (!result.ok) { setError(result.error); setStatus('') }
       else { setStatus(t('editor.saved')); setTimeout(() => setStatus(''), 1500) }
     } catch (err) {
@@ -316,6 +330,10 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
           value={filter?.value ?? ''}
           onChange={(event) => setFilter(event.target.value === '' ? undefined : { col: selected.col, value: event.target.value })}
         />
+        <button type="button" className={css.button} onClick={toggleFreeze}>
+          {(freezes.find((f) => f.sheet === grid?.name)?.rows ?? 0) > 0 ? t('sheet.unfreeze') : t('sheet.freeze')}
+        </button>
+        <button type="button" className={css.button} onClick={() => setChartOpen(true)}>{t('sheet.chart')}</button>
         <button type="button" className={css.button} onClick={() => void save()}>{t('editor.save')}</button>
       </div>
       {/* fx formula bar */}
@@ -340,6 +358,9 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
       </div>
       {error !== undefined && <div className={css.error}>{error}</div>}
       {loading && <div className={css.hint}>{t('editor.saving')}</div>}
+      {chartOpen && grid !== undefined && (
+        <ChartModal grid={grid} col={selected.col} t={t} onClose={() => setChartOpen(false)} />
+      )}
       {!loading && grid !== undefined && (
         <div className={css.gridScroll}>
           <table className={css.grid}>
@@ -404,6 +425,53 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
           </table>
         </div>
       )}
+    </div>
+  )
+}
+
+/** Lightweight SVG bar chart over one column's numeric data. */
+function ChartModal({ grid, col, t, onClose }: {
+  grid: SheetGrid
+  col: number
+  t: Translate<OfficeKey>
+  onClose: () => void
+}): React.ReactElement {
+  const values = grid.rows.slice(1)
+    .map((row) => Number(String(row[col] ?? '').replace(/,/g, '')))
+    .filter((n) => Number.isFinite(n))
+  const max = Math.max(...values, 0)
+  const barWidth = 34
+  const gap = 18
+  const width = Math.max(240, values.length * (barWidth + gap) + 60)
+  const height = 240
+
+  return (
+    <div className={css.chartOverlay} onClick={onClose} role="presentation">
+      <div className={css.chartPanel} onClick={(event) => event.stopPropagation()} role="presentation">
+        <div className={css.chartHead}>
+          <span className={css.sectionTitle}>{grid.name}</span>
+          <button type="button" className={css.button} onClick={onClose}>×</button>
+        </div>
+        {values.length === 0 ? (
+          <div className={css.hint}>{t('sheet.chart')}</div>
+        ) : (
+          <svg width={width} height={height} className={css.chartSvg} role="img" aria-label={t('sheet.chart')}>
+            <line x1="40" y1={height - 30} x2={width - 10} y2={height - 30} stroke="rgba(31,35,40,0.25)" strokeWidth="1" />
+            {values.map((value, index) => {
+              const barH = max === 0 ? 0 : Math.round((value / max) * (height - 70))
+              const x = 44 + index * (barWidth + gap)
+              const y = height - 30 - barH
+              return (
+                <g key={index}>
+                  <rect x={x} y={y} width={barWidth} height={barH} rx="4" fill="rgba(59,130,246,0.75)" />
+                  <text x={x + barWidth / 2} y={y - 6} textAnchor="middle" fontSize="10.5" fill="rgba(31,35,40,0.7)">{value}</text>
+                  <text x={x + barWidth / 2} y={height - 14} textAnchor="middle" fontSize="10" fill="rgba(31,35,40,0.5)">{index + 1}</text>
+                </g>
+              )
+            })}
+          </svg>
+        )}
+      </div>
     </div>
   )
 }

@@ -132,3 +132,14 @@ describe('merged cells', () => {
     expect(merges[0]).toMatchObject({ r1: 1, c1: 1, r2: 1, c2: 2 })
   })
 })
+
+describe('frozen rows', () => {
+  it('round-trips frozen header rows through xlsx', async () => {
+    const out = join(tmp, 'frozen.xlsx')
+    const { gridsToXlsx, xlsxToGrids } = await import('../src/docs.ts')
+    await gridsToXlsx([{ name: 'S', rows: [['h'], ['1']] }], out, [], [{ sheet: 'S', rows: 1, cols: 0 }])
+    const { freezes } = await xlsxToGrids(out)
+    expect(freezes.length).toBe(1)
+    expect(freezes[0]).toMatchObject({ sheet: 'S', rows: 1 })
+  })
+})

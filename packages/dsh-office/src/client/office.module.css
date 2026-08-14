@@ -955,3 +955,62 @@
     border-color: rgba(229, 233, 240, 0.14);
   }
 }
+
+/* ---- chart modal ---- */
+
+.chartOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6000;
+  background: rgba(31, 35, 40, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chartPanel {
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 24px 64px rgba(31, 35, 40, 0.28);
+  max-width: 92%;
+  max-height: 86%;
+  overflow: auto;
+}
+
+.chartHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.chartSvg {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  .chartPanel {
+    background: #1c212a;
+  }
+}
+
+/* ---- browse dialog ---- */
+
+.browseBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(31, 35, 40, 0.08);
+  position: sticky;
+  top: 0;
+  background: rgba(246, 248, 251, 0.95);
+  z-index: 1;
+}
+
+.fileKind {
+  color: rgba(59, 130, 246, 0.8);
+  width: 16px;
+  display: inline-block;
+}

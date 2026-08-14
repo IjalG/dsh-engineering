@@ -197,7 +197,8 @@ export function apply(ctx: Context): void {
       const root = resolveRoot(sessionOf(body))
       const filePath = resolveInside(root, path)
       if (filePath === undefined) { json(res, 400, { ok: false, error: 'path outside workspace' }); return }
-      await htmlToDocx(html, filePath)
+      const setup = (body as { pageSetup?: unknown }).pageSetup
+      await htmlToDocx(html, filePath, typeof setup === 'object' && setup !== null ? setup as { size?: 'A4' | 'Letter'; orientation?: 'portrait' | 'landscape'; margins?: 'normal' | 'narrow' | 'wide' } : {})
       json(res, 200, { ok: true })
     }),
     route('sheet.open', async (body, res) => {
@@ -207,7 +208,7 @@ export function apply(ctx: Context): void {
       const filePath = resolveInside(root, path)
       if (filePath === undefined) { json(res, 400, { ok: false, error: 'path outside workspace' }); return }
       const read = await xlsxToGrids(filePath)
-      json(res, 200, { ok: true, grids: read.grids, merges: read.merges })
+      json(res, 200, { ok: true, grids: read.grids, merges: read.merges, freezes: read.freezes })
     }),
     route('sheet.save', async (body, res) => {
       const path = str(body, 'path')
@@ -217,10 +218,12 @@ export function apply(ctx: Context): void {
       const filePath = resolveInside(root, path)
       if (filePath === undefined) { json(res, 400, { ok: false, error: 'path outside workspace' }); return }
       const merges = (body as { merges?: unknown }).merges
+      const freezes = (body as { freezes?: unknown }).freezes
       await gridsToXlsx(
         grids as Array<{ name: string; rows: string[][] }>,
         filePath,
         Array.isArray(merges) ? merges as Array<{ sheet: string; r1: number; c1: number; r2: number; c2: number }> : [],
+        Array.isArray(freezes) ? freezes as Array<{ sheet: string; rows: number; cols: number }> : [],
       )
       json(res, 200, { ok: true })
     }),

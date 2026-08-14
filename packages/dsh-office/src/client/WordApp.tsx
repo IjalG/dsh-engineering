@@ -75,6 +75,8 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | undefined>()
   const [findOpen, setFindOpen] = useState(false)
+  const [pageSetupOpen, setPageSetupOpen] = useState(false)
+  const [pageSetup, setPageSetup] = useState<{ size: 'A4' | 'Letter'; orientation: 'portrait' | 'landscape'; margins: 'normal' | 'narrow' | 'wide' }>({ size: 'A4', orientation: 'portrait', margins: 'normal' })
   const [findText, setFindText] = useState('')
   const [replaceText, setReplaceText] = useState('')
   const [wordCount, setWordCount] = useState(0)
@@ -126,7 +128,7 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
     if (editor === null) return
     setStatus(t('editor.saving'))
     try {
-      const result = await api.wordSave(currentPath, editor.getHTML())
+      const result = await api.wordSave(currentPath, editor.getHTML(), pageSetup)
       if (!result.ok) { setError(result.error); setStatus('') }
       else { setStatus(t('editor.saved')); setTimeout(() => setStatus(''), 1500) }
     } catch (err) {
@@ -214,7 +216,7 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
     const target = name.trim().endsWith('.docx') ? name.trim() : `${name.trim()}.docx`
     setStatus(t('editor.saving'))
     try {
-      const result = await api.wordSave(target, editor?.getHTML() ?? '')
+      const result = await api.wordSave(target, editor?.getHTML() ?? '', pageSetup)
       if (!result.ok) { setError(result.error); setStatus('') }
       else { setCurrentPath(target); setStatus(t('editor.saved')); setTimeout(() => setStatus(''), 1500) }
     } catch (err) {
@@ -236,6 +238,9 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
         </button>
         <button type="button" className={css.button} onClick={saveAs} disabled={disabled}>
           {t('editor.saveAs')}
+        </button>
+        <button type="button" className={css.toolButton} title={t('word.pageSetup')} onClick={() => setPageSetupOpen((open) => !open)} disabled={disabled}>
+          {t('word.pageSetup')}
         </button>
         <button type="button" className={css.toolButton} title={t('word.findReplace')} onClick={() => setFindOpen((open) => !open)} disabled={disabled}>
           {t('word.find')}
@@ -270,6 +275,25 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
         <ToolButton label={t('word.undo')} title={t('word.undo')} disabled={disabled || !editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()} />
         <ToolButton label={t('word.redo')} title={t('word.redo')} disabled={disabled || !editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()} />
       </div>
+      {pageSetupOpen && (
+        <div className={css.findBar}>
+          <select className={css.findInput} value={pageSetup.size} onChange={(event) => setPageSetup((prev) => ({ ...prev, size: event.target.value as 'A4' | 'Letter' }))}>
+            <option value="A4">A4</option>
+            <option value="Letter">Letter</option>
+          </select>
+          <select className={css.findInput} value={pageSetup.orientation} onChange={(event) => setPageSetup((prev) => ({ ...prev, orientation: event.target.value as 'portrait' | 'landscape' }))}>
+            <option value="portrait">{t('word.portrait')}</option>
+            <option value="landscape">{t('word.landscape')}</option>
+          </select>
+          <select className={css.findInput} value={pageSetup.margins} onChange={(event) => setPageSetup((prev) => ({ ...prev, margins: event.target.value as 'normal' | 'narrow' | 'wide' }))}>
+            <option value="normal">{t('word.marginNormal')}</option>
+            <option value="narrow">{t('word.marginNarrow')}</option>
+            <option value="wide">{t('word.marginWide')}</option>
+          </select>
+          <span className={css.hint} style={{ padding: 0 }}>{t('word.pageSetupHint')}</span>
+          <button type="button" className={css.button} onClick={() => setPageSetupOpen(false)}>×</button>
+        </div>
+      )}
       {findOpen && (
         <div className={css.findBar}>
           <input className={css.findInput} placeholder={t('word.findPlaceholder')} value={findText} onChange={(event) => setFindText(event.target.value)} />

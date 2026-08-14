@@ -11,7 +11,7 @@ import { mkdirSync } from 'node:fs'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import mammoth from 'mammoth'
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, LevelFormat, AlignmentType, ImageRun } from 'docx'
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, LevelFormat, AlignmentType, ImageRun, PageOrientation } from 'docx'
 import ExcelJS from 'exceljs'
 import { PDFDocument } from 'pdf-lib'
 import PptxGenJS from 'pptxgenjs'
@@ -32,6 +32,15 @@ export interface SheetMerge {
   c1: number
   r2: number
   c2: number
+}
+
+/** Frozen rows per sheet. */
+export interface SheetFreeze {
+  sheet: string
+  /** Number of frozen top rows. */
+  rows: number
+  /** Number of frozen left columns. */
+  cols: number
 }
 
 /** Word document as HTML (editable in the client). */
@@ -63,13 +72,36 @@ export async function docxToHtml(filePath: string): Promise<WordHtml> {
   return { html: result.value, title: basename(filePath).replace(/\.docx?$/i, '') }
 }
 
+/** Page setup: paper size, orientation and margin preset. */
+export interface PageSetup {
+  size?: 'A4' | 'Letter'
+  orientation?: 'portrait' | 'landscape'
+  margins?: 'normal' | 'narrow' | 'wide'
+}
+
+/** Paper sizes in twips (dxa). */
+const PAPER_SIZES: Record<'A4' | 'Letter', { width: number; height: number }> = {
+  A4: { width: 11906, height: 16838 },
+  Letter: { width: 12240, height: 15840 },
+}
+
+/** Margin presets in twips (1 inch = 1440). */
+const MARGIN_PRESETS: Record<'normal' | 'narrow' | 'wide', { top: number; right: number; bottom: number; left: number }> = {
+  normal: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
+  narrow: { top: 720, right: 720, bottom: 720, left: 720 },
+  wide: { top: 1440, right: 2880, bottom: 1440, left: 2880 },
+}
+
 /**
  * Simple HTML subset -> docx: h1-h6, p, ul/ol/li, table, strong/em/u,
  * br, a (stripped). Unknown tags degrade to paragraphs of their text.
  */
-export async function htmlToDocx(html: string, outPath: string): Promise<void> {
+export async function htmlToDocx(html: string, outPath: string, pageSetup: PageSetup = {}): Promise<void> {
   const paragraphs = parseHtmlToBlocks(html)
   const children = blocksToDocx(paragraphs)
+  const paper = PAPER_SIZES[pageSetup.size ?? 'A4']
+  const landscape = pageSetup.orientation === 'landscape'
+  const margins = MARGIN_PRESETS[pageSetup.margins ?? 'normal']
   const doc = new Document({
     numbering: {
       config: [
@@ -84,7 +116,19 @@ export async function htmlToDocx(html: string, outPath: string): Promise<void> {
         },
       ],
     },
-    sections: [{ children }],
+    sections: [{
+      properties: {
+        page: {
+          size: {
+            width: paper.width,
+            height: paper.height,
+            orientation: landscape ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT,
+          },
+          margin: margins,
+        },
+      },
+      children,
+    }],
   })
   const buffer = await Packer.toBuffer(doc)
   mkdirSync(dirname(outPath), { recursive: true })
@@ -275,6 +319,7 @@ function blocksToDocx(blocks: HtmlBlock[]): Array<Paragraph | Table> {
 export interface XlsxReadResult {
   grids: SheetGrid[]
   merges: SheetMerge[]
+  freezes: SheetFreeze[]
 }
 
 /** xlsx -> JSON grids + merged ranges (first 200 rows x 40 cols per sheet, 3 sheets max). */
@@ -283,6 +328,7 @@ export async function xlsxToGrids(filePath: string): Promise<XlsxReadResult> {
   await workbook.xlsx.readFile(filePath)
   const grids: SheetGrid[] = []
   const merges: SheetMerge[] = []
+  const freezes: SheetFreeze[] = []
   for (const worksheet of workbook.worksheets.slice(0, 3)) {
     const rows: string[][] = []
     for (let r = 1; r <= Math.min(200, worksheet.rowCount); r++) {
@@ -295,6 +341,10 @@ export async function xlsxToGrids(filePath: string): Promise<XlsxReadResult> {
       rows.push(cells)
     }
     grids.push({ name: worksheet.name, rows })
+    const view = (worksheet.views ?? [])[0] as { xSplit?: number; ySplit?: number } | undefined
+    if (view !== undefined && ((view.ySplit ?? 0) > 0 || (view.xSplit ?? 0) > 0)) {
+      freezes.push({ sheet: worksheet.name, rows: view.ySplit ?? 0, cols: view.xSplit ?? 0 })
+    }
     // worksheet.model.merges is string-address pairs like 'A1:B2'.
     for (const raw of worksheet.model.merges ?? []) {
       const m = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(String(raw))
@@ -306,7 +356,7 @@ export async function xlsxToGrids(filePath: string): Promise<XlsxReadResult> {
       merges.push({ sheet: worksheet.name, r1, c1, r2, c2 })
     }
   }
-  return { grids, merges }
+  return { grids, merges, freezes }
 }
 
 function colIndex(letters: string): number {
@@ -335,7 +385,7 @@ function cellToText(value: unknown): string {
 }
 
 /** JSON grids -> xlsx (creates/overwrites; keeps formulas as text). */
-export async function gridsToXlsx(grids: SheetGrid[], outPath: string, merges: SheetMerge[] = []): Promise<void> {
+export async function gridsToXlsx(grids: SheetGrid[], outPath: string, merges: SheetMerge[] = [], freezes: SheetFreeze[] = []): Promise<void> {
   const workbook = new ExcelJS.Workbook()
   for (const grid of grids.slice(0, 3)) {
     const sheet = workbook.addWorksheet(grid.name.slice(0, 31) || 'Sheet1')
@@ -351,6 +401,11 @@ export async function gridsToXlsx(grids: SheetGrid[], outPath: string, merges: S
     } catch {
       // overlapping merge -> skip
     }
+  }
+  for (const freeze of freezes) {
+    const sheet = workbook.worksheets.find((ws) => ws.name === freeze.sheet)
+    if (sheet === undefined) continue
+    sheet.views = [{ state: 'frozen', xSplit: freeze.cols, ySplit: freeze.rows }]
   }
   mkdirSync(dirname(outPath), { recursive: true })
   await workbook.xlsx.writeFile(outPath)
