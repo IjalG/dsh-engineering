@@ -9,6 +9,10 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
+import Table from '@tiptap/extension-table'
+import TableRow from '@tiptap/extension-table-row'
+import TableCell from '@tiptap/extension-table-cell'
+import TableHeader from '@tiptap/extension-table-header'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import type { OfficeKey } from './locales.ts'
 import { OfficeApi } from './api.ts'
@@ -46,7 +50,14 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
   const [error, setError] = useState<string | undefined>()
 
   const editor = useEditor({
-    extensions: [StarterKit, Underline],
+    extensions: [
+      StarterKit,
+      Underline,
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
+    ],
     content: '<p></p>',
     editorProps: {
       attributes: {
@@ -111,6 +122,15 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
         <ToolButton label={t('word.ordered')} title={t('word.ordered')} active={editor?.isActive('orderedList')} disabled={disabled} onClick={() => editor?.chain().focus().toggleOrderedList().run()} />
         <ToolButton label={t('word.quote')} title={t('word.quote')} active={editor?.isActive('blockquote')} disabled={disabled} onClick={() => editor?.chain().focus().toggleBlockquote().run()} />
         <ToolButton label={t('word.rule')} title={t('word.rule')} disabled={disabled} onClick={() => editor?.chain().focus().setHorizontalRule().run()} />
+        <span className={css.barSeparator} />
+        <ToolButton label={t('word.table')} title={t('word.table')} disabled={disabled} onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} />
+        <ToolButton label={t('word.addRow')} title={t('word.addRow')} disabled={disabled} onClick={() => editor?.chain().focus().addRowAfter().run()} />
+        <ToolButton label={t('word.delRow')} title={t('word.delRow')} disabled={disabled} onClick={() => editor?.chain().focus().deleteRow().run()} />
+        <ToolButton label={t('word.addCol')} title={t('word.addCol')} disabled={disabled} onClick={() => editor?.chain().focus().addColumnAfter().run()} />
+        <ToolButton label={t('word.delCol')} title={t('word.delCol')} disabled={disabled} onClick={() => editor?.chain().focus().deleteColumn().run()} />
+        <ToolButton label={t('word.merge')} title={t('word.merge')} disabled={disabled} onClick={() => editor?.chain().focus().mergeCells().run()} />
+        <ToolButton label={t('word.headerRow')} title={t('word.headerRow')} active={editor?.isActive('tableHeader')} disabled={disabled} onClick={() => editor?.chain().focus().toggleHeaderRow().run()} />
+        <ToolButton label={t('word.delTable')} title={t('word.delTable')} disabled={disabled} onClick={() => editor?.chain().focus().deleteTable().run()} />
         <span className={css.barSeparator} />
         <ToolButton label={t('word.undo')} title={t('word.undo')} disabled={disabled || !editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()} />
         <ToolButton label={t('word.redo')} title={t('word.redo')} disabled={disabled || !editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()} />

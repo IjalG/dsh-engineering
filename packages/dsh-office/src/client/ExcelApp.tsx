@@ -1,10 +1,12 @@
 /**
- * Excel app: grid editor bound to a .xlsx file (JSON grids over the host
- * exceljs round-trip). Row/column insert & delete, column width dragging,
- * sheet add/remove, and cell editing.
+ * Excel app: grid editor with a real formula engine (hyperformula), an fx
+ * formula bar, auto-sum, sorting, and number formats. Cells holding formulas
+ * display their computed value; focusing a cell reveals its formula in the
+ * fx bar (and inline while editing).
  */
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { HyperFormula } from 'hyperformula'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import type { OfficeKey } from './locales.ts'
 import type { SheetGrid } from '../docs.ts'
@@ -21,7 +23,12 @@ const api = new OfficeApi()
 const MAX_ROWS = 500
 const MAX_COLS = 80
 
-/** Column letter for a 0-based index. */
+/** Cell display format. */
+type CellFormat = 'auto' | 'number' | 'percent' | 'currency' | 'date'
+
+/** Formats per sheet: "row:col" -> CellFormat. */
+type FormatMap = Record<string, Record<string, CellFormat>>
+
 function colLetter(index: number): string {
   let n = index
   let letter = ''
@@ -32,10 +39,36 @@ function colLetter(index: number): string {
   return letter
 }
 
+function cellAddress(col: number, row: number): string {
+  return `${colLetter(col)}${row + 1}`
+}
+
+/** Format a raw value for display. */
+function formatValue(raw: string, format: CellFormat): string {
+  if (format === 'auto') return raw
+  const number = Number(raw.replace(/,/g, ''))
+  if (!Number.isFinite(number) || raw.trim() === '') return raw
+  try {
+    if (format === 'number') return number.toLocaleString('zh-CN', { maximumFractionDigits: 4 })
+    if (format === 'percent') return `${(number * 100).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}%`
+    if (format === 'currency') return `¥${number.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    if (format === 'date') {
+      const date = new Date(number)
+      if (!Number.isNaN(date.getTime())) return date.toLocaleDateString('zh-CN')
+      return raw
+    }
+  } catch {
+    // fall through
+  }
+  return raw
+}
+
 export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
   const [grids, setGrids] = useState<SheetGrid[]>([])
   const [active, setActive] = useState(0)
   const [colWidths, setColWidths] = useState<number[]>([])
+  const [formats, setFormats] = useState<FormatMap>({})
+  const [selected, setSelected] = useState<{ col: number; row: number }>({ col: 0, row: 0 })
   const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | undefined>()
@@ -59,6 +92,40 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
   useEffect(() => { void load() }, [load])
 
   const grid = grids[active]
+
+  // ---- formula engine: rebuild on grid change ----
+  const hf = useMemo(() => {
+    if (grid === undefined) return undefined
+    try {
+      const sheets: Record<string, string[][]> = {}
+      for (const g of grids) sheets[g.name] = g.rows
+      return HyperFormula.buildFromSheets(sheets, {
+        licenseKey: 'gpl-v3',
+        useArrayArithmetic: true,
+      })
+    } catch {
+      return undefined
+    }
+  }, [grids, grid])
+
+  /** Computed display value for one cell. */
+  const displayValue = useCallback((sheet: string, row: number, col: number, raw: string): string => {
+    const format = formats[sheet]?.[`${row}:${col}`] ?? 'auto'
+    if (raw.startsWith('=')) {
+      try {
+        const sheetId = hf?.getSheetId(sheet)
+        const computed = sheetId !== undefined ? hf?.getCellValue({ sheet: sheetId, col, row }) : undefined
+        if (computed !== undefined) {
+          const text = String(computed)
+          return format === 'auto' ? text : formatValue(text, format)
+        }
+      } catch {
+        // formula error -> raw
+      }
+      return raw
+    }
+    return formatValue(raw, format)
+  }, [hf, formats])
 
   const setCell = (row: number, col: number, value: string): void => {
     setGrids((prev) => prev.map((g, gi) => {
@@ -113,6 +180,48 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
     setActive((prev) => Math.max(0, prev - 1))
   }
 
+  /** Auto-sum: fill the selected cell with =SUM(col 1..row-1). */
+  const autoSum = (): void => {
+    if (grid === undefined) return
+    const { col, row } = selected
+    if (row === 0) return
+    const range = `${colLetter(col)}1:${colLetter(col)}${row}`
+    setCell(row, col, `=SUM(${range})`)
+  }
+
+  /** Sort rows by the selected column. */
+  const sort = (direction: 'asc' | 'desc'): void => {
+    if (grid === undefined || grid.rows.length < 2) return
+    setGrids((prev) => prev.map((g, gi) => {
+      if (gi !== active) return g
+      const header = g.rows[0] ?? []
+      const body = g.rows.slice(1)
+      body.sort((a, b) => {
+        const av = a[selected.col] ?? ''
+        const bv = b[selected.col] ?? ''
+        const an = Number(av)
+        const bn = Number(bv)
+        const cmp = Number.isFinite(an) && Number.isFinite(bn)
+          ? an - bn
+          : av.localeCompare(bv, 'zh-CN')
+        return direction === 'asc' ? cmp : -cmp
+      })
+      return { ...g, rows: [header, ...body] }
+    }))
+  }
+
+  const setFormat = (format: CellFormat): void => {
+    if (grid === undefined) return
+    const key = `${selected.row}:${selected.col}`
+    setFormats((prev) => {
+      const next: FormatMap = { ...prev }
+      const sheetMap = { ...(next[grid.name] ?? {}) }
+      sheetMap[key] = format
+      next[grid.name] = sheetMap
+      return next
+    })
+  }
+
   const save = async (): Promise<void> => {
     setStatus(t('editor.saving'))
     try {
@@ -127,6 +236,8 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
 
   const rowCount = Math.max(1, grid?.rows.length ?? 1)
   const colCount = Math.max(1, ...(grid?.rows.map((r) => r.length) ?? [1]))
+  const selectedRaw = grid?.rows[selected.row]?.[selected.col] ?? ''
+  const selectedComputed = grid !== undefined ? displayValue(grid.name, selected.row, selected.col, selectedRaw) : ''
 
   return (
     <div className={css.container}>
@@ -158,7 +269,29 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
         <button type="button" className={css.button} onClick={insertCol}>{t('sheet.insertCol')}</button>
         <button type="button" className={css.button} onClick={deleteRow}>{t('sheet.deleteRow')}</button>
         <button type="button" className={css.button} onClick={deleteCol}>{t('sheet.deleteCol')}</button>
+        <button type="button" className={css.button} onClick={() => sort('asc')}>{t('sheet.sortAsc')}</button>
+        <button type="button" className={css.button} onClick={() => sort('desc')}>{t('sheet.sortDesc')}</button>
         <button type="button" className={css.button} onClick={() => void save()}>{t('editor.save')}</button>
+      </div>
+      {/* fx formula bar */}
+      <div className={css.fxBar}>
+        <span className={css.fxName}>{cellAddress(selected.col, selected.row)}</span>
+        <button type="button" className={css.fxSum} title={t('sheet.autoSum')} onClick={autoSum}>Σ</button>
+        <span className={css.fxLabel}>{t('sheet.fx')}</span>
+        <input
+          className={css.fxInput}
+          value={selectedRaw}
+          onChange={(event) => setCell(selected.row, selected.col, event.target.value)}
+          placeholder={t('sheet.formula')}
+        />
+        <span className={css.fxValue}>{selectedComputed}</span>
+      </div>
+      <div className={css.formatBar}>
+        <button type="button" className={css.toolButton} onClick={() => setFormat('number')}>{t('sheet.number')}</button>
+        <button type="button" className={css.toolButton} onClick={() => setFormat('percent')}>{t('sheet.percent')}</button>
+        <button type="button" className={css.toolButton} onClick={() => setFormat('currency')}>{t('sheet.currency')}</button>
+        <button type="button" className={css.toolButton} onClick={() => setFormat('date')}>{t('sheet.date')}</button>
+        <button type="button" className={css.toolButton} onClick={() => setFormat('auto')}>A</button>
       </div>
       {error !== undefined && <div className={css.error}>{error}</div>}
       {loading && <div className={css.hint}>{t('editor.saving')}</div>}
@@ -202,15 +335,22 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
               {Array.from({ length: rowCount }, (_, r) => (
                 <tr key={r}>
                   <th className={css.gridRowHead}>{r + 1}</th>
-                  {Array.from({ length: colCount }, (_, c) => (
-                    <td key={c} className={css.gridCell}>
-                      <input
-                        className={css.gridInput}
-                        value={grid.rows[r]?.[c] ?? ''}
-                        onChange={(event) => setCell(r, c, event.target.value)}
-                      />
-                    </td>
-                  ))}
+                  {Array.from({ length: colCount }, (_, c) => {
+                    const raw = grid.rows[r]?.[c] ?? ''
+                    const isSelected = selected.col === c && selected.row === r
+                    return (
+                      <td key={c} className={[css.gridCell, isSelected ? css.gridCellSelected : ''].join(' ')}>
+                        <input
+                          className={css.gridInput}
+                          value={displayValue(grid.name, r, c, raw)}
+                          data-raw={raw.startsWith('=') ? raw : undefined}
+                          onChange={(event) => setCell(r, c, event.target.value)}
+                          onFocus={(event) => { setSelected({ col: c, row: r }); if (raw.startsWith('=')) event.target.value = raw }}
+                          onBlur={(event) => { if (raw.startsWith('=')) event.target.value = displayValue(grid.name, r, c, raw) }}
+                        />
+                      </td>
+                    )
+                  })}
                 </tr>
               ))}
             </tbody>
