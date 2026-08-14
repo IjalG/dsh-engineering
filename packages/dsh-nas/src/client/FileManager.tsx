@@ -1,9 +1,8 @@
 /**
- * File manager: the desktop's core app. Directory tree via breadcrumb,
- * entry list with sort, create/rename/move/copy/delete(to trash)/upload/
- * download, inline text preview via the preview window, and file routing:
- * a registered app extension opens that app's window; unknown extensions
- * open the preview window (text) or show the "no app installed" hint.
+ * File manager: the desktop's core app. Breadcrumb navigation, sortable
+ * columns (name/size/time), selection with a detail strip, keyboard
+ * shortcuts (Delete = trash, F2 = rename), create/rename/move/copy/delete
+ * (to trash), and file routing into registered apps or the text preview.
  */
 
 import React, { useCallback, useEffect, useState } from 'react'
@@ -30,12 +29,15 @@ interface FmState {
   error?: string
   query: string
   clipboard?: { action: 'copy' | 'move'; path: string }
+  sortKey: 'name' | 'size' | 'mtime'
+  sortAsc: boolean
+  selected?: string
 }
 
-function formatSize(bytes: number, t: Translate<NasKey>): string {
-  if (bytes < 1024) return `${bytes} ${t('common.bytes')}`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} ${t('common.kb')}`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} ${t('common.mb')}`
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function formatTime(ms: number): string {
@@ -44,11 +46,22 @@ function formatTime(ms: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-export function FileManager({ window, t }: FileManagerProps): React.ReactElement {
-  const [state, setState] = useState<FmState>({ cwd: '', entries: [], loading: true, query: '' })
+/** Breadcrumb segments of a workspace-relative path. */
+function segmentsOf(cwd: string): Array<{ label: string; path: string }> {
+  if (cwd === '') return [{ label: '/', path: '' }]
+  const parts = cwd.split('/')
+  const segments: Array<{ label: string; path: string }> = [{ label: '/', path: '' }]
+  for (let i = 0; i < parts.length; i++) {
+    segments.push({ label: parts[i]!, path: parts.slice(0, i + 1).join('/') })
+  }
+  return segments
+}
+
+export function FileManager({ t }: FileManagerProps): React.ReactElement {
+  const [state, setState] = useState<FmState>({ cwd: '', entries: [], loading: true, query: '', sortKey: 'name', sortAsc: true })
 
   const refresh = useCallback(async (cwd: string): Promise<void> => {
-    setState((prev) => ({ ...prev, loading: true, error: undefined }))
+    setState((prev) => ({ ...prev, loading: true, error: undefined, selected: undefined }))
     try {
       const result: NasFsListResult = await api.list(cwd)
       setState((prev) => ({
@@ -65,9 +78,18 @@ export function FileManager({ window, t }: FileManagerProps): React.ReactElement
 
   useEffect(() => { void refresh('') }, [refresh])
 
+  const sorted = [...state.entries].sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind === 'dir' ? -1 : 1
+    let cmp = 0
+    if (state.sortKey === 'name') cmp = a.name.localeCompare(b.name, 'zh-CN')
+    else if (state.sortKey === 'size') cmp = a.size - b.size
+    else cmp = a.mtime - b.mtime
+    return state.sortAsc ? cmp : -cmp
+  })
+
   const visibleEntries = state.query.trim() === ''
-    ? state.entries
-    : state.entries.filter((entry) => entry.name.toLowerCase().includes(state.query.trim().toLowerCase()))
+    ? sorted
+    : sorted.filter((entry) => entry.name.toLowerCase().includes(state.query.trim().toLowerCase()))
 
   const openEntry = async (entry: NasFsEntry): Promise<void> => {
     if (entry.kind === 'dir') {
@@ -80,7 +102,6 @@ export function FileManager({ window, t }: FileManagerProps): React.ReactElement
       desktopStore.openWindow(app.windowKind, app.name, { path: entry.path })
       return
     }
-    // No app: text files preview inline; binary files show the hint.
     if (isTextExt(entry.ext)) {
       desktopStore.openWindow('preview', entry.name, { path: entry.path, editable: true })
     } else {
@@ -150,12 +171,46 @@ export function FileManager({ window, t }: FileManagerProps): React.ReactElement
     void refresh(idx <= 0 ? '' : cwd.slice(0, idx))
   }
 
+  const cycleSort = (key: 'name' | 'size' | 'mtime'): void => {
+    setState((prev) => {
+      if (prev.sortKey === key) return { ...prev, sortAsc: !prev.sortAsc }
+      return { ...prev, sortKey: key, sortAsc: true }
+    })
+  }
+
+  const selectedEntry = state.entries.find((entry) => entry.path === state.selected)
+
+  // Keyboard shortcuts while the list has focus.
+  const onListKeyDown = (event: React.KeyboardEvent): void => {
+    if (selectedEntry === undefined) return
+    if (event.key === 'Delete') {
+      event.preventDefault()
+      void deleteEntry(selectedEntry)
+    } else if (event.key === 'F2') {
+      event.preventDefault()
+      void renameEntry(selectedEntry)
+    }
+  }
+
   return (
     <div className={css.fm}>
       <div className={css.fmToolbar}>
         <button type="button" className={css.fmButton} onClick={() => void refresh('')} title={t('fm.refresh')}>{t('fm.refresh')}</button>
         <button type="button" className={css.fmButton} onClick={upDir} disabled={state.cwd === ''} title={t('fm.up')}>{t('fm.up')}</button>
-        <span className={css.fmCwd}>{state.cwd === '' ? '/' : `/${state.cwd}`}</span>
+        <div className={css.crumbs}>
+          {segmentsOf(state.cwd).map((segment, index) => (
+            <span key={segment.path}>
+              {index > 0 && <span className={css.crumbSep}>/</span>}
+              <button
+                type="button"
+                className={[css.crumb, index === segmentsOf(state.cwd).length - 1 ? css.crumbCurrent : ''].join(' ')}
+                onClick={() => void refresh(segment.path)}
+              >
+                {segment.label}
+              </button>
+            </span>
+          ))}
+        </div>
         <span className={css.fmSpacer} />
         <input
           className={css.fmSearch}
@@ -168,19 +223,42 @@ export function FileManager({ window, t }: FileManagerProps): React.ReactElement
         <button type="button" className={css.fmButton} onClick={() => void createFile()}>{t('fm.newFile')}</button>
         <button type="button" className={css.fmButton} onClick={() => void createFolder()}>{t('fm.newFolder')}</button>
         <button type="button" className={css.fmButton} onClick={() => void paste()} disabled={state.clipboard === undefined}>{t('fm.paste')}</button>
+        <span className={css.fmSpacer} />
+        {selectedEntry !== undefined && (
+          <span className={css.fmDetail}>
+            {selectedEntry.name} · {selectedEntry.kind === 'dir' ? '—' : formatSize(selectedEntry.size)} · {formatTime(selectedEntry.mtime)}
+          </span>
+        )}
+      </div>
+      <div className={css.fmHead}>
+        <button type="button" className={css.fmHeadCell} onClick={() => cycleSort('name')}>
+          {t('fm.name')}{state.sortKey === 'name' ? (state.sortAsc ? ' ↑' : ' ↓') : ''}
+        </button>
+        <button type="button" className={css.fmHeadSize} onClick={() => cycleSort('size')}>
+          {t('fm.size')}{state.sortKey === 'size' ? (state.sortAsc ? ' ↑' : ' ↓') : ''}
+        </button>
+        <button type="button" className={css.fmHeadTime} onClick={() => cycleSort('mtime')}>
+          {t('fm.modified')}{state.sortKey === 'mtime' ? (state.sortAsc ? ' ↑' : ' ↓') : ''}
+        </button>
+        <span className={css.fmHeadActions} />
       </div>
       {state.error !== undefined && <div className={css.fmError}>{state.error}</div>}
-      <div className={css.fmList}>
+      <div className={css.fmList} onKeyDown={onListKeyDown} tabIndex={0}>
         {visibleEntries.length === 0 && !state.loading && (
           <div className={css.fmEmpty}>{state.query === '' ? t('fm.empty') : t('fm.searchPlaceholder')}</div>
         )}
         {visibleEntries.map((entry) => (
-          <div key={entry.path} className={css.fmRow} onDoubleClick={() => void openEntry(entry)}>
-            <button type="button" className={css.fmRowMain} onClick={() => void openEntry(entry)}>
+          <div
+            key={entry.path}
+            className={[css.fmRow, state.selected === entry.path ? css.fmRowSelected : ''].join(' ')}
+            onClick={() => setState((prev) => ({ ...prev, selected: entry.path }))}
+            onDoubleClick={() => void openEntry(entry)}
+          >
+            <button type="button" className={css.fmRowMain} onClick={() => { setState((prev) => ({ ...prev, selected: entry.path })); void openEntry(entry) }}>
               <span className={[css.fmIcon, entry.kind === 'dir' ? css.fmIconDir : css.fmIconFile].join(' ')} aria-hidden="true" />
               <span className={css.fmName}>{entry.name}</span>
-              <span className={css.fmMeta}>{entry.kind === 'dir' ? '—' : formatSize(entry.size, t)}</span>
-              <span className={css.fmMeta}>{formatTime(entry.mtime)}</span>
+              <span className={css.fmMetaSize}>{entry.kind === 'dir' ? '—' : formatSize(entry.size)}</span>
+              <span className={css.fmMetaTime}>{formatTime(entry.mtime)}</span>
             </button>
             <div className={css.fmRowActions}>
               <button type="button" className={css.fmMini} title={t('fm.rename')} onClick={() => void renameEntry(entry)}>R</button>

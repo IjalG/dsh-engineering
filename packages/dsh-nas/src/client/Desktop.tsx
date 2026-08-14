@@ -441,6 +441,22 @@ export function Desktop({ t, useSessions }: DesktopProps): React.ReactElement {
     desktopStore.setActiveSessionId(sessionId)
   }, [sessionId])
 
+  // Desktop shortcuts: Ctrl/Cmd+W closes the focused window.
+  useEffect(() => {
+    if (!snapshot.open) return
+    const onKey = (event: KeyboardEvent): void => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'w') {
+        event.preventDefault()
+        const windows = desktopStore.getSnapshot().windows
+        const top = windows.reduce<NasWindow | undefined>((acc, item) =>
+          acc === undefined || item.z > acc.z ? item : acc, undefined)
+        if (top !== undefined) desktopStore.closeWindow(top.id)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [snapshot.open])
+
   if (!snapshot.open) {
     return <DockHandle t={t} />
   }

@@ -256,6 +256,18 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
     }
   }
 
+  // Ctrl/Cmd+S saves the workbook.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        void save()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
   const save = async (): Promise<void> => {
     setStatus(t('editor.saving'))
     try {

@@ -124,6 +124,18 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
     return () => { editor.off('update', onUpdate) }
   }, [editor])
 
+  // Ctrl/Cmd+S saves the document.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        void save()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
   const save = async (): Promise<void> => {
     if (editor === null) return
     setStatus(t('editor.saving'))
@@ -272,6 +284,7 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
         <ToolButton label={t('word.delTable')} title={t('word.delTable')} disabled={disabled} onClick={() => editor?.chain().focus().deleteTable().run()} />
         <ToolButton label={t('word.image')} title={t('word.image')} disabled={disabled} onClick={insertImage} />
         <span className={css.barSeparator} />
+        <ToolButton label={t('word.clearFormat')} title={t('word.clearFormat')} disabled={disabled} onClick={() => editor?.chain().focus().unsetAllMarks().clearNodes().run()} />
         <ToolButton label={t('word.undo')} title={t('word.undo')} disabled={disabled || !editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()} />
         <ToolButton label={t('word.redo')} title={t('word.redo')} disabled={disabled || !editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()} />
       </div>

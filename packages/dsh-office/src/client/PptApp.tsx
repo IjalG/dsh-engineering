@@ -98,6 +98,18 @@ export function PptApp({ path, t }: PptAppProps): React.ReactElement {
     setShow(true)
   }
 
+  // Ctrl/Cmd+S saves the deck.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        void save()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
   const save = async (): Promise<void> => {
     setStatus(t('editor.saving'))
     try {
