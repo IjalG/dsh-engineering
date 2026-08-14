@@ -14,6 +14,8 @@ import mammoth from 'mammoth'
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType } from 'docx'
 import ExcelJS from 'exceljs'
 import { PDFDocument } from 'pdf-lib'
+import PptxGenJS from 'pptxgenjs'
+import JSZip from 'jszip'
 
 const execFileAsync = promisify(execFile)
 
@@ -248,6 +250,61 @@ export async function gridsToXlsx(grids: SheetGrid[], outPath: string): Promise<
   }
   mkdirSync(dirname(outPath), { recursive: true })
   await workbook.xlsx.writeFile(outPath)
+}
+
+/** One slide's editable text (title + body lines). */
+export interface SlideText {
+  title: string
+  body: string[]
+}
+
+/** Presentation content (slides of title/body text). */
+export interface PresentationText {
+  slides: SlideText[]
+}
+
+/** pptx -> slide texts (best effort: reads slide XML text runs via JSZip). */
+export async function pptxToSlides(filePath: string): Promise<PresentationText> {
+  const data = await readFile(filePath)
+  const zip = await JSZip.loadAsync(data)
+  const slides: SlideText[] = []
+  const names = Object.keys(zip.files)
+    .filter((name) => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
+    .sort((a, b) => {
+      const na = Number(/slide(\d+)\.xml/i.exec(a)?.[1] ?? 0)
+      const nb = Number(/slide(\d+)\.xml/i.exec(b)?.[1] ?? 0)
+      return na - nb
+    })
+  for (const name of names) {
+    const xml = await zip.file(name)?.async('string')
+    if (xml === undefined) continue
+    const texts: string[] = []
+    const textRe = /<a:t[^>]*>([\s\S]*?)<\/a:t>/g
+    let match: RegExpExecArray | null
+    while ((match = textRe.exec(xml)) !== null) {
+      const text = match[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      if (text.trim() !== '') texts.push(text)
+    }
+    slides.push({ title: texts[0] ?? '', body: texts.slice(1) })
+  }
+  return { slides }
+}
+
+/** slide texts -> pptx (title + body lines per slide). */
+export async function slidesToPptx(presentation: PresentationText, outPath: string): Promise<void> {
+  const pptx = new PptxGenJS()
+  pptx.layout = 'LAYOUT_16x9'
+  for (const slide of presentation.slides.slice(0, 40)) {
+    const slideDef = pptx.addSlide()
+    if (slide.title !== '') {
+      slideDef.addText(slide.title, { x: 0.5, y: 0.4, w: 9, h: 0.9, fontSize: 28, bold: true, color: '1F2937' })
+    }
+    if (slide.body.length > 0) {
+      slideDef.addText(slide.body.slice(0, 12).join('\n'), { x: 0.5, y: 1.5, w: 9, h: 4.5, fontSize: 16, color: '374151', breakLine: true })
+    }
+  }
+  mkdirSync(dirname(outPath), { recursive: true })
+  await pptx.writeFile({ fileName: outPath })
 }
 
 /** Merge PDFs into one file. */

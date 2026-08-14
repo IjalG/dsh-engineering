@@ -85,3 +85,15 @@ describe('PDF merge and split', () => {
     expect(files).toHaveLength(2)
   })
 })
+
+describe('pptx round-trip', () => {
+  it('writes slides to pptx and reads the text back', async () => {
+    const out = join(tmp, 'deck.pptx')
+    const { slidesToPptx, pptxToSlides } = await import('../src/docs.ts')
+    await slidesToPptx({ slides: [{ title: '季度汇报', body: ['销售增长 20%', '新客户 5 家'] }, { title: '下一步', body: [] }] }, out)
+    const { slides } = await pptxToSlides(out)
+    expect(slides.length).toBe(2)
+    expect(slides[0]?.title).toBe('季度汇报')
+    expect(slides[0]?.body).toContain('销售增长 20%')
+  })
+})

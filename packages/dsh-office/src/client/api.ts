@@ -2,7 +2,7 @@
  * Browser API for /api/dsh-office.
  */
 
-import type { SheetGrid } from '../docs.ts'
+import type { SheetGrid, SlideText } from '../docs.ts'
 import type { OcrPage } from '../ocr.ts'
 
 /** Resolve the active session id (best effort). */
@@ -48,6 +48,8 @@ export class OfficeApi {
   pdfMerge(paths: string[], outPath: string): Promise<{ ok: boolean; pages?: number; error?: string }> { return call('pdf.merge', { paths, outPath }) }
   pdfSplit(path: string): Promise<{ ok: boolean; files?: string[]; error?: string }> { return call('pdf.split', { path }) }
   convert(path: string): Promise<{ ok: boolean; outPath?: string; error?: string }> { return call('convert', { path }) }
+  pptOpen(path: string): Promise<{ ok: boolean; slides: SlideText[]; error?: string }> { return call('ppt.open', { path }) }
+  pptSave(path: string, slides: SlideText[]): Promise<{ ok: boolean; error?: string }> { return call('ppt.save', { path, slides }) }
   ocrImage(path: string): Promise<OcrResult> { return call('ocr.image', { path }) }
   configGet(): Promise<{ ok: boolean; config: { visionEndpoint: string; visionModel: string; visionConfigured: boolean } }> { return call('config.get') }
   configSet(visionEndpoint: string, visionKey: string, visionModel: string): Promise<{ ok: boolean; error?: string }> { return call('config.set', { visionEndpoint, visionKey, visionModel }) }

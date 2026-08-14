@@ -16,7 +16,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import { isAbsolute, join, resolve, sep } from 'node:path'
 import {
-  convertToPdf, docxToHtml, gridsToXlsx, htmlToDocx, mergePdfs, probeLibreOffice, splitPdf, xlsxToGrids,
+  convertToPdf, docxToHtml, gridsToXlsx, htmlToDocx, mergePdfs, probeLibreOffice, pptxToSlides,
+  slidesToPptx, splitPdf, xlsxToGrids,
 } from './docs.ts'
 import { imageToBase64, readOfficeConfig, visionOcr, writeOfficeConfig, type OfficeConfig } from './ocr.ts'
 
@@ -215,6 +216,24 @@ export function apply(ctx: Context): void {
       const filePath = resolveInside(root, path)
       if (filePath === undefined) { json(res, 400, { ok: false, error: 'path outside workspace' }); return }
       await gridsToXlsx(grids as Array<{ name: string; rows: string[][] }>, filePath)
+      json(res, 200, { ok: true })
+    }),
+    route('ppt.open', async (body, res) => {
+      const path = str(body, 'path')
+      if (path === undefined) { json(res, 400, { ok: false, error: 'path required' }); return }
+      const root = resolveRoot(sessionOf(body))
+      const filePath = resolveInside(root, path)
+      if (filePath === undefined) { json(res, 400, { ok: false, error: 'path outside workspace' }); return }
+      json(res, 200, { ok: true, ...(await pptxToSlides(filePath)) })
+    }),
+    route('ppt.save', async (body, res) => {
+      const path = str(body, 'path')
+      const slides = (body as { slides?: unknown }).slides
+      if (path === undefined || !Array.isArray(slides)) { json(res, 400, { ok: false, error: 'path and slides required' }); return }
+      const root = resolveRoot(sessionOf(body))
+      const filePath = resolveInside(root, path)
+      if (filePath === undefined) { json(res, 400, { ok: false, error: 'path outside workspace' }); return }
+      await slidesToPptx({ slides: slides as Array<{ title: string; body: string[] }> }, filePath)
       json(res, 200, { ok: true })
     }),
     route('pdf.merge', async (body, res) => {

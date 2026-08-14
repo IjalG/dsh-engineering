@@ -267,3 +267,106 @@
   max-height: 220px;
   overflow: auto;
 }
+
+/* ---- ppt ---- */
+
+.pptBody {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.pptRail {
+  width: 150px;
+  overflow: auto;
+  border-right: 1px solid rgba(31, 35, 40, 0.1);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pptThumb {
+  position: relative;
+}
+
+.pptThumbMain {
+  width: 100%;
+  border: 1px solid rgba(31, 35, 40, 0.14);
+  border-radius: 6px;
+  background: #fff;
+  padding: 10px 8px;
+  cursor: pointer;
+  text-align: left;
+  min-height: 64px;
+}
+
+.pptThumbActive .pptThumbMain {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.pptThumbTitle {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pptThumbBody {
+  display: block;
+  font-size: 11px;
+  color: rgba(31, 35, 40, 0.55);
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pptThumbDel {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  border: none;
+  background: rgba(31, 35, 40, 0.08);
+  border-radius: 4px;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.pptThumbDel:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+}
+
+.pptEditor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  min-width: 0;
+}
+
+.pptTitleInput {
+  font-size: 18px;
+  font-weight: 600;
+  border: none;
+  border-bottom: 1px solid rgba(31, 35, 40, 0.15);
+  border-radius: 0;
+  padding: 8px 4px;
+}
+
+.pptBodyInput {
+  flex: 1;
+  min-height: 160px;
+  resize: none;
+  font-size: 14px;
+  line-height: 1.8;
+}

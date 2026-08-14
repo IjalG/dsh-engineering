@@ -33,7 +33,9 @@
     "pdf-lib": "^1.17.1",
     "@tiptap/react": "^2.10.0",
     "@tiptap/starter-kit": "^2.10.0",
-    "@tiptap/pm": "^2.10.0"
+    "@tiptap/pm": "^2.10.0",
+    "pptxgenjs": "^3.12.0",
+    "jszip": "^3.10.1"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",

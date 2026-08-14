@@ -44,6 +44,11 @@ export const zh = {
   'ocr.notConfigured': '未配置视觉端点',
   'common.cancel': '取消',
   'common.ok': '确定',
+  'ppt.addSlide': '添加幻灯片',
+  'ppt.removeSlide': '删除幻灯片',
+  'ppt.slide': '幻灯片',
+  'ppt.titlePlaceholder': '标题',
+  'ppt.bodyPlaceholder': '正文（每行一条）',
 } as const
 
 export const en: Record<keyof typeof zh, string> = {
@@ -88,6 +93,11 @@ export const en: Record<keyof typeof zh, string> = {
   'ocr.notConfigured': 'vision endpoint not configured',
   'common.cancel': 'Cancel',
   'common.ok': 'OK',
+  'ppt.addSlide': 'Add slide',
+  'ppt.removeSlide': 'Remove slide',
+  'ppt.slide': 'Slide',
+  'ppt.titlePlaceholder': 'Title',
+  'ppt.bodyPlaceholder': 'Body (one line per bullet)',
 }
 
 export type OfficeKey = keyof typeof zh
