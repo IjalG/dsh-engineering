@@ -206,7 +206,8 @@ export function apply(ctx: Context): void {
       const root = resolveRoot(sessionOf(body))
       const filePath = resolveInside(root, path)
       if (filePath === undefined) { json(res, 400, { ok: false, error: 'path outside workspace' }); return }
-      json(res, 200, { ok: true, grids: await xlsxToGrids(filePath) })
+      const read = await xlsxToGrids(filePath)
+      json(res, 200, { ok: true, grids: read.grids, merges: read.merges })
     }),
     route('sheet.save', async (body, res) => {
       const path = str(body, 'path')
@@ -215,7 +216,12 @@ export function apply(ctx: Context): void {
       const root = resolveRoot(sessionOf(body))
       const filePath = resolveInside(root, path)
       if (filePath === undefined) { json(res, 400, { ok: false, error: 'path outside workspace' }); return }
-      await gridsToXlsx(grids as Array<{ name: string; rows: string[][] }>, filePath)
+      const merges = (body as { merges?: unknown }).merges
+      await gridsToXlsx(
+        grids as Array<{ name: string; rows: string[][] }>,
+        filePath,
+        Array.isArray(merges) ? merges as Array<{ sheet: string; r1: number; c1: number; r2: number; c2: number }> : [],
+      )
       json(res, 200, { ok: true })
     }),
     route('ppt.open', async (body, res) => {
@@ -311,6 +317,21 @@ export function apply(ctx: Context): void {
       const { base64, mime } = await imageToBase64(filePath)
       const page = await visionOcr(config, base64, mime, 1)
       json(res, 200, { ok: true, page, untrusted: true, model: config.visionModel, configured: config.visionEndpoint !== undefined })
+    }),
+    route('pdf.text', async (body, res) => {
+      const path = str(body, 'path')
+      if (path === undefined) { json(res, 400, { ok: false, error: 'path required' }); return }
+      const root = resolveRoot(sessionOf(body))
+      const filePath = resolveInside(root, path)
+      if (filePath === undefined) { json(res, 400, { ok: false, error: 'path outside workspace' }); return }
+      const { execFile } = await import('node:child_process')
+      const { promisify } = await import('node:util')
+      try {
+        const { stdout } = await promisify(execFile)('pdftotext', ['-enc', 'UTF-8', filePath, '-'], { timeout: 30_000, maxBuffer: 16 * 1024 * 1024 })
+        json(res, 200, { ok: true, text: stdout })
+      } catch (error) {
+        json(res, 200, { ok: true, text: '', error: error instanceof Error ? error.message : String(error) })
+      }
     }),
     route('ocr.pdf', async (body, res) => {
       const path = str(body, 'path')

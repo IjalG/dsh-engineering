@@ -23,6 +23,7 @@ export function PdfApp({ path, t }: PdfAppProps): React.ReactElement {
   const [ocrPath, setOcrPath] = useState('')
   const [ocrText, setOcrText] = useState('')
   const [pdfOcrBusy, setPdfOcrBusy] = useState(false)
+  const [pdfText, setPdfText] = useState('')
   const [endpoint, setEndpoint] = useState('')
   const [model, setModel] = useState('')
   const [key, setKey] = useState('')
@@ -86,6 +87,16 @@ export function PdfApp({ path, t }: PdfAppProps): React.ReactElement {
     }
   }
 
+  const extractText = async (): Promise<void> => {
+    setPdfText('')
+    try {
+      const result = await api.pdfText(path)
+      setPdfText(result.text ?? result.error ?? '')
+    } catch (err) {
+      setPdfText(err instanceof Error ? err.message : String(err))
+    }
+  }
+
   const saveConfig = async (): Promise<void> => {
     await api.configSet(endpoint.trim(), key.trim(), model.trim())
     setConfigured(endpoint.trim() !== '' && key.trim() !== '')
@@ -97,12 +108,19 @@ export function PdfApp({ path, t }: PdfAppProps): React.ReactElement {
       <div className={css.toolbar}>
         <span className={css.path}>{path}</span>
         <span className={css.spacer} />
+        <button type="button" className={css.button} onClick={() => void extractText()}>{t('pdf.extractText')}</button>
         <button type="button" className={css.button} disabled={pdfOcrBusy} onClick={() => void ocrPdf()}>{t('pdf.ocrPages')}</button>
         {message !== '' && <span className={css.status}>{message}</span>}
       </div>
       <div className={css.pdfView}>
         <PdfViewer path={path} t={t} />
       </div>
+      {pdfText !== '' && (
+        <div className={css.section}>
+          <div className={css.sectionTitle}>{t('pdf.extractText')}</div>
+          <pre className={css.ocrText} style={{ maxHeight: 220 }}>{pdfText}</pre>
+        </div>
+      )}
       <div className={css.section}>
         <div className={css.sectionTitle}>{t('pdf.title')}</div>
         <div className={css.formRow}>

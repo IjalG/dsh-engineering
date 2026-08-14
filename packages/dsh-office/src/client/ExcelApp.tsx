@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { HyperFormula } from 'hyperformula'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import type { OfficeKey } from './locales.ts'
-import type { SheetGrid } from '../docs.ts'
+import type { SheetGrid, SheetMerge } from '../docs.ts'
 import { OfficeApi } from './api.ts'
 import css from './office.module.css'
 
@@ -68,6 +68,8 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
   const [active, setActive] = useState(0)
   const [colWidths, setColWidths] = useState<number[]>([])
   const [formats, setFormats] = useState<FormatMap>({})
+  const [merges, setMerges] = useState<SheetMerge[]>([])
+  const [filter, setFilter] = useState<{ col: number; value: string } | undefined>()
   const [selected, setSelected] = useState<{ col: number; row: number }>({ col: 0, row: 0 })
   const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(true)
@@ -81,6 +83,7 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
       if (!result.ok) { setError(result.error); return }
       if (result.grids.length === 0) result.grids.push({ name: 'Sheet1', rows: [['']] })
       setGrids(result.grids)
+      setMerges(result.merges ?? [])
       setActive(0)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -222,10 +225,27 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
     })
   }
 
+  /** Merge the selected cell with the cell to its right. */
+  const mergeSelected = (): void => {
+    if (grid === undefined) return
+    const { col, row } = selected
+    if (col + 1 >= Math.max(1, ...grid.rows.map((r) => r.length))) return
+    const overlap = merges.some((m) => m.sheet === grid.name && row + 1 >= m.r1 && row + 1 <= m.r2 && col + 1 >= m.c1 && col + 1 <= m.c2)
+    if (overlap) { setError('与已有合并区域重叠'); return }
+    setMerges((prev) => [...prev, { sheet: grid.name, r1: row + 1, c1: col + 1, r2: row + 1, c2: col + 2 }])
+  }
+
+  /** Unmerge any range covering the selected cell. */
+  const unmergeSelected = (): void => {
+    if (grid === undefined) return
+    const { col, row } = selected
+    setMerges((prev) => prev.filter((m) => !(m.sheet === grid.name && row + 1 >= m.r1 && row + 1 <= m.r2 && col + 1 >= m.c1 && col + 1 <= m.c2)))
+  }
+
   const save = async (): Promise<void> => {
     setStatus(t('editor.saving'))
     try {
-      const result = await api.sheetSave(path, grids)
+      const result = await api.sheetSave(path, grids, merges)
       if (!result.ok) { setError(result.error); setStatus('') }
       else { setStatus(t('editor.saved')); setTimeout(() => setStatus(''), 1500) }
     } catch (err) {
@@ -238,6 +258,23 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
   const colCount = Math.max(1, ...(grid?.rows.map((r) => r.length) ?? [1]))
   const selectedRaw = grid?.rows[selected.row]?.[selected.col] ?? ''
   const selectedComputed = grid !== undefined ? displayValue(grid.name, selected.row, selected.col, selectedRaw) : ''
+
+  // Merged-cell render plan for the active sheet: spans + skipped cells.
+  const sheetMerges = grid !== undefined ? merges.filter((m) => m.sheet === grid.name) : []
+  const mergeSpan = new Map<string, { colSpan: number; rowSpan: number }>()
+  const skipCells = new Set<string>()
+  for (const m of sheetMerges) {
+    mergeSpan.set(`${m.r1 - 1}:${m.c1 - 1}`, { colSpan: m.c2 - m.c1 + 1, rowSpan: m.r2 - m.r1 + 1 })
+    for (let r = m.r1 - 1; r <= m.r2 - 1; r++) {
+      for (let c = m.c1 - 1; c <= m.c2 - 1; c++) {
+        if (r !== m.r1 - 1 || c !== m.c1 - 1) skipCells.add(`${r}:${c}`)
+      }
+    }
+  }
+  const visibleRowCount = rowCount
+  const filteredRows = filter !== undefined
+    ? grid?.rows.map((row, index) => ({ row, index })).filter(({ row }) => (row[filter.col] ?? '').toLowerCase().includes(filter.value.toLowerCase()))
+    : grid?.rows.map((row, index) => ({ row, index }))
 
   return (
     <div className={css.container}>
@@ -271,6 +308,14 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
         <button type="button" className={css.button} onClick={deleteCol}>{t('sheet.deleteCol')}</button>
         <button type="button" className={css.button} onClick={() => sort('asc')}>{t('sheet.sortAsc')}</button>
         <button type="button" className={css.button} onClick={() => sort('desc')}>{t('sheet.sortDesc')}</button>
+        <button type="button" className={css.button} onClick={mergeSelected} title={t('sheet.mergeCells')}>{t('sheet.mergeCells')}</button>
+        <button type="button" className={css.button} onClick={unmergeSelected} title={t('sheet.unmergeCells')}>{t('sheet.unmergeCells')}</button>
+        <input
+          className={css.filterInput}
+          placeholder={t('sheet.filter')}
+          value={filter?.value ?? ''}
+          onChange={(event) => setFilter(event.target.value === '' ? undefined : { col: selected.col, value: event.target.value })}
+        />
         <button type="button" className={css.button} onClick={() => void save()}>{t('editor.save')}</button>
       </div>
       {/* fx formula bar */}
@@ -332,14 +377,16 @@ export function ExcelApp({ path, t }: ExcelAppProps): React.ReactElement {
               </tr>
             </thead>
             <tbody>
-              {Array.from({ length: rowCount }, (_, r) => (
+              {(filteredRows ?? []).map(({ row, index: r }) => (
                 <tr key={r}>
                   <th className={css.gridRowHead}>{r + 1}</th>
                   {Array.from({ length: colCount }, (_, c) => {
-                    const raw = grid.rows[r]?.[c] ?? ''
+                    if (skipCells.has(`${r}:${c}`)) return null
+                    const raw = row[c] ?? ''
                     const isSelected = selected.col === c && selected.row === r
+                    const span = mergeSpan.get(`${r}:${c}`)
                     return (
-                      <td key={c} className={[css.gridCell, isSelected ? css.gridCellSelected : ''].join(' ')}>
+                      <td key={c} colSpan={span?.colSpan} rowSpan={span?.rowSpan} className={[css.gridCell, isSelected ? css.gridCellSelected : ''].join(' ')}>
                         <input
                           className={css.gridInput}
                           value={displayValue(grid.name, r, c, raw)}

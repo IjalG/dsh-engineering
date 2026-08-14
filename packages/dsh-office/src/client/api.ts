@@ -2,7 +2,7 @@
  * Browser API for /api/dsh-office.
  */
 
-import type { SheetGrid, SlideText } from '../docs.ts'
+import type { SheetGrid, SheetMerge, SlideText } from '../docs.ts'
 import type { OcrPage } from '../ocr.ts'
 
 let ACTIVE_SESSION: string | undefined
@@ -42,7 +42,7 @@ async function call<T>(action: string, body: Record<string, unknown> = {}): Prom
 }
 
 export interface WordOpenResult { ok: boolean; html: string; title: string; error?: string }
-export interface SheetOpenResult { ok: boolean; grids: SheetGrid[]; error?: string }
+export interface SheetOpenResult { ok: boolean; grids: SheetGrid[]; merges?: SheetMerge[]; error?: string }
 export interface OcrResult { ok: boolean; page: OcrPage; untrusted: boolean; model?: string; configured: boolean; error?: string }
 export interface ProbeResult { ok: boolean; libreOffice: { available: boolean; version?: string } }
 
@@ -52,7 +52,7 @@ export class OfficeApi {
   wordOpen(path: string): Promise<WordOpenResult> { return call('word.open', { path }) }
   wordSave(path: string, html: string): Promise<{ ok: boolean; error?: string }> { return call('word.save', { path, html }) }
   sheetOpen(path: string): Promise<SheetOpenResult> { return call('sheet.open', { path }) }
-  sheetSave(path: string, grids: SheetGrid[]): Promise<{ ok: boolean; error?: string }> { return call('sheet.save', { path, grids }) }
+  sheetSave(path: string, grids: SheetGrid[], merges: SheetMerge[] = []): Promise<{ ok: boolean; error?: string }> { return call('sheet.save', { path, grids, merges }) }
   pdfMerge(paths: string[], outPath: string): Promise<{ ok: boolean; pages?: number; error?: string }> { return call('pdf.merge', { paths, outPath }) }
   pdfSplit(path: string): Promise<{ ok: boolean; files?: string[]; error?: string }> { return call('pdf.split', { path }) }
   convert(path: string): Promise<{ ok: boolean; outPath?: string; error?: string }> { return call('convert', { path }) }
@@ -61,6 +61,7 @@ export class OfficeApi {
   pdfPages(path: string): Promise<{ ok: boolean; pages: Array<{ page: number; base64: string; mime: string }>; count?: number; error?: string }> { return call('pdf.pages', { path }) }
   ocrImage(path: string): Promise<OcrResult> { return call('ocr.image', { path }) }
   ocrPdf(path: string): Promise<{ ok: boolean; pages?: Array<{ page: number; text: string; method: string; error?: string }>; error?: string; untrusted?: boolean }> { return call('ocr.pdf', { path }) }
+  pdfText(path: string): Promise<{ ok: boolean; text?: string; error?: string }> { return call('pdf.text', { path }) }
   configGet(): Promise<{ ok: boolean; config: { visionEndpoint: string; visionModel: string; visionConfigured: boolean } }> { return call('config.get') }
   configSet(visionEndpoint: string, visionKey: string, visionModel: string): Promise<{ ok: boolean; error?: string }> { return call('config.set', { visionEndpoint, visionKey, visionModel }) }
 }

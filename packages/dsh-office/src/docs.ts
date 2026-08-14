@@ -25,6 +25,15 @@ export interface SheetGrid {
   rows: string[][]
 }
 
+/** Merged cell range (1-based exceljs coords, inclusive). */
+export interface SheetMerge {
+  sheet: string
+  r1: number
+  c1: number
+  r2: number
+  c2: number
+}
+
 /** Word document as HTML (editable in the client). */
 export interface WordHtml {
   html: string
@@ -263,11 +272,17 @@ function blocksToDocx(blocks: HtmlBlock[]): Array<Paragraph | Table> {
   return children
 }
 
-/** xlsx -> JSON grids (first 200 rows x 40 cols per sheet, 3 sheets max). */
-export async function xlsxToGrids(filePath: string): Promise<SheetGrid[]> {
+export interface XlsxReadResult {
+  grids: SheetGrid[]
+  merges: SheetMerge[]
+}
+
+/** xlsx -> JSON grids + merged ranges (first 200 rows x 40 cols per sheet, 3 sheets max). */
+export async function xlsxToGrids(filePath: string): Promise<XlsxReadResult> {
   const workbook = new ExcelJS.Workbook()
   await workbook.xlsx.readFile(filePath)
   const grids: SheetGrid[] = []
+  const merges: SheetMerge[] = []
   for (const worksheet of workbook.worksheets.slice(0, 3)) {
     const rows: string[][] = []
     for (let r = 1; r <= Math.min(200, worksheet.rowCount); r++) {
@@ -280,8 +295,34 @@ export async function xlsxToGrids(filePath: string): Promise<SheetGrid[]> {
       rows.push(cells)
     }
     grids.push({ name: worksheet.name, rows })
+    // worksheet.model.merges is string-address pairs like 'A1:B2'.
+    for (const raw of worksheet.model.merges ?? []) {
+      const m = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(String(raw))
+      if (m === null) continue
+      const c1 = colIndex(m[1]!)
+      const r1 = Number(m[2]!)
+      const c2 = colIndex(m[3]!)
+      const r2 = Number(m[4]!)
+      merges.push({ sheet: worksheet.name, r1, c1, r2, c2 })
+    }
   }
-  return grids
+  return { grids, merges }
+}
+
+function colIndex(letters: string): number {
+  let n = 0
+  for (const char of letters) n = n * 26 + (char.charCodeAt(0) - 64)
+  return n
+}
+
+function colName(index: number): string {
+  let n = index
+  let name = ''
+  do {
+    name = String.fromCharCode(65 + ((n - 1) % 26)) + name
+    n = Math.floor((n - 1) / 26)
+  } while (n > 0)
+  return name
 }
 
 function cellToText(value: unknown): string {
@@ -294,12 +335,21 @@ function cellToText(value: unknown): string {
 }
 
 /** JSON grids -> xlsx (creates/overwrites; keeps formulas as text). */
-export async function gridsToXlsx(grids: SheetGrid[], outPath: string): Promise<void> {
+export async function gridsToXlsx(grids: SheetGrid[], outPath: string, merges: SheetMerge[] = []): Promise<void> {
   const workbook = new ExcelJS.Workbook()
   for (const grid of grids.slice(0, 3)) {
     const sheet = workbook.addWorksheet(grid.name.slice(0, 31) || 'Sheet1')
     for (const row of grid.rows) {
       sheet.addRow(row.map((cell) => cell))
+    }
+  }
+  for (const merge of merges) {
+    const sheet = workbook.worksheets.find((ws) => ws.name === merge.sheet)
+    if (sheet === undefined) continue
+    try {
+      sheet.mergeCells(merge.r1, merge.c1, merge.r2, merge.c2)
+    } catch {
+      // overlapping merge -> skip
     }
   }
   mkdirSync(dirname(outPath), { recursive: true })

@@ -74,6 +74,10 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
   const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | undefined>()
+  const [findOpen, setFindOpen] = useState(false)
+  const [findText, setFindText] = useState('')
+  const [replaceText, setReplaceText] = useState('')
+  const [wordCount, setWordCount] = useState(0)
 
   const editor = useEditor({
     extensions: [
@@ -109,6 +113,14 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
   }, [currentPath, editor])
 
   useEffect(() => { void load() }, [load])
+
+  useEffect(() => {
+    if (editor === null) return
+    const onUpdate = (): void => updateWordCount()
+    editor.on('update', onUpdate)
+    updateWordCount()
+    return () => { editor.off('update', onUpdate) }
+  }, [editor])
 
   const save = async (): Promise<void> => {
     if (editor === null) return
@@ -148,6 +160,54 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
     event.target.value = ''
   }
 
+  const updateWordCount = (): void => {
+    if (editor === null) return
+    const text = editor.getText()
+    const han = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) ?? []).length
+    const words = (text.match(/[a-zA-Z0-9]+/g) ?? []).length
+    setWordCount(han + words)
+  }
+
+  const findNext = (): void => {
+    if (editor === null || findText === '') return
+    // Find across the document from the current selection.
+    const text = editor.getText()
+    const from = editor.state.selection.to
+    const haystack = text
+    const idx = haystack.toLowerCase().indexOf(findText.toLowerCase(), Math.min(from, haystack.length))
+    const realIdx = idx >= 0 ? idx : haystack.toLowerCase().indexOf(findText.toLowerCase())
+    if (realIdx < 0) { setStatus('未找到'); return }
+    const head = editor.state.doc.resolve(Math.min(realIdx, editor.state.doc.content.size))
+    editor.chain().focus().setTextSelection({ from: head.pos, to: Math.min(head.pos + findText.length, editor.state.doc.content.size) }).scrollIntoView().run()
+  }
+
+  const replaceOne = (): void => {
+    if (editor === null || findText === '') return
+    const selected = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to)
+    if (selected.toLowerCase() === findText.toLowerCase()) {
+      editor.chain().focus().insertContent(replaceText).run()
+    }
+    findNext()
+  }
+
+  const replaceAll = (): void => {
+    if (editor === null || findText === '') return
+    // TipTap has no built-in replace-all; walk matches from the start.
+    const text = editor.getText()
+    let replaced = 0
+    let idx = text.toLowerCase().indexOf(findText.toLowerCase())
+    const maxIter = 2000
+    while (idx >= 0 && replaced < maxIter) {
+      const from = editor.state.doc.resolve(idx)
+      editor.chain().focus().setTextSelection({ from: from.pos, to: from.pos + findText.length }).insertContent(replaceText).run()
+      replaced++
+      const next = editor.getText()
+      idx = next.toLowerCase().indexOf(findText.toLowerCase(), idx + replaceText.length)
+    }
+    setStatus(replaced > 0 ? `已替换 ${replaced} 处` : '未找到')
+    setTimeout(() => setStatus(''), 1800)
+  }
+
   const saveAs = async (): Promise<void> => {
     const name = globalThis.prompt('另存为（工作区相对路径）', currentPath)
     if (name === null || name.trim() === '') return
@@ -177,6 +237,10 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
         <button type="button" className={css.button} onClick={saveAs} disabled={disabled}>
           {t('editor.saveAs')}
         </button>
+        <button type="button" className={css.toolButton} title={t('word.findReplace')} onClick={() => setFindOpen((open) => !open)} disabled={disabled}>
+          {t('word.find')}
+        </button>
+        <span className={css.wordCount}>{t('word.count')}: {wordCount}</span>
       </div>
       <div className={css.formatBar}>
         <ToolButton label={t('word.h1')} title={t('word.h1')} active={editor?.isActive('heading', { level: 1 })} disabled={disabled} onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} />
@@ -206,6 +270,16 @@ export function WordApp({ path, t }: WordAppProps): React.ReactElement {
         <ToolButton label={t('word.undo')} title={t('word.undo')} disabled={disabled || !editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()} />
         <ToolButton label={t('word.redo')} title={t('word.redo')} disabled={disabled || !editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()} />
       </div>
+      {findOpen && (
+        <div className={css.findBar}>
+          <input className={css.findInput} placeholder={t('word.findPlaceholder')} value={findText} onChange={(event) => setFindText(event.target.value)} />
+          <input className={css.findInput} placeholder={t('word.replacePlaceholder')} value={replaceText} onChange={(event) => setReplaceText(event.target.value)} />
+          <button type="button" className={css.button} onClick={findNext}>{t('word.findNext')}</button>
+          <button type="button" className={css.button} onClick={replaceOne}>{t('word.replaceOne')}</button>
+          <button type="button" className={css.button} onClick={replaceAll}>{t('word.replaceAll')}</button>
+          <button type="button" className={css.button} onClick={() => setFindOpen(false)}>×</button>
+        </div>
+      )}
       {error !== undefined && <div className={css.error}>{error}</div>}
       {loading && <div className={css.hint}>{t('editor.saving')}</div>}
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onImageChosen} />

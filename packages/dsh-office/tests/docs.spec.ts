@@ -57,10 +57,11 @@ describe('xlsx round-trip', () => {
   it('writes grids to xlsx and reads them back', async () => {
     const out = join(tmp, 'sheet.xlsx')
     await gridsToXlsx([{ name: '数据', rows: [['名称', '数量'], ['苹果', '3'], ['香蕉', '5']] }], out)
-    const grids = await xlsxToGrids(out)
+    const { grids, merges } = await xlsxToGrids(out)
     expect(grids[0]?.name).toBe('数据')
     expect(grids[0]?.rows[0]).toEqual(['名称', '数量'])
     expect(grids[0]?.rows[2]).toEqual(['香蕉', '5'])
+    expect(merges).toEqual([])
   })
 })
 
@@ -118,5 +119,16 @@ describe('pptx round-trip', () => {
     const { stat } = await import('node:fs/promises')
     const info = await stat(out)
     expect(info.size).toBeGreaterThan(1000)
+  })
+})
+
+describe('merged cells', () => {
+  it('round-trips merged ranges through xlsx', async () => {
+    const out = join(tmp, 'merged.xlsx')
+    const { gridsToXlsx, xlsxToGrids } = await import('../src/docs.ts')
+    await gridsToXlsx([{ name: 'S', rows: [['标题', ''], ['a', 'b']] }], out, [{ sheet: 'S', r1: 1, c1: 1, r2: 1, c2: 2 }])
+    const { merges } = await xlsxToGrids(out)
+    expect(merges.length).toBe(1)
+    expect(merges[0]).toMatchObject({ r1: 1, c1: 1, r2: 1, c2: 2 })
   })
 })

@@ -72,6 +72,14 @@ export const zh = {
   'word.delTable': '删表',
   'word.image': '插入图片',
   'editor.saveAs': '另存为',
+  'word.find': '查找',
+  'word.findReplace': '查找替换',
+  'word.findPlaceholder': '查找内容',
+  'word.replacePlaceholder': '替换为',
+  'word.findNext': '查找下一个',
+  'word.replaceOne': '替换',
+  'word.replaceAll': '全部替换',
+  'word.count': '字数',
   'ppt.addImage': '插入图片',
   'ppt.slideshow': '放映',
   'ppt.slideShowHint': 'Esc 退出放映，左右方向键或点击翻页',
@@ -87,6 +95,7 @@ export const zh = {
   'sheet.date': '日期',
   'sheet.mergeCells': '合并单元格',
   'sheet.unmergeCells': '取消合并',
+  'sheet.filter': '筛选当前列…',
   'sheet.insertRow': '插入行',
   'sheet.insertCol': '插入列',
   'sheet.deleteRow': '删除行',
@@ -99,6 +108,7 @@ export const zh = {
   'pdf.zoomIn': '放大',
   'pdf.zoomOut': '缩小',
   'pdf.ocrPages': 'OCR 识别（前 5 页）',
+  'pdf.extractText': '提取文本',
 } as const
 
 export const en: Record<keyof typeof zh, string> = {
@@ -171,6 +181,14 @@ export const en: Record<keyof typeof zh, string> = {
   'word.delTable': 'Del table',
   'word.image': 'Image',
   'editor.saveAs': 'Save as',
+  'word.find': 'Find',
+  'word.findReplace': 'Find & replace',
+  'word.findPlaceholder': 'Find',
+  'word.replacePlaceholder': 'Replace with',
+  'word.findNext': 'Find next',
+  'word.replaceOne': 'Replace',
+  'word.replaceAll': 'Replace all',
+  'word.count': 'words',
   'ppt.addImage': 'Add image',
   'ppt.slideshow': 'Slideshow',
   'ppt.slideShowHint': 'Esc to exit, arrows or click to navigate',
@@ -186,6 +204,7 @@ export const en: Record<keyof typeof zh, string> = {
   'sheet.date': 'Date',
   'sheet.mergeCells': 'Merge cells',
   'sheet.unmergeCells': 'Unmerge cells',
+  'sheet.filter': 'Filter this column…',
   'sheet.insertRow': 'Insert row',
   'sheet.insertCol': 'Insert column',
   'sheet.deleteRow': 'Delete row',
@@ -198,6 +217,7 @@ export const en: Record<keyof typeof zh, string> = {
   'pdf.zoomIn': 'Zoom in',
   'pdf.zoomOut': 'Zoom out',
   'pdf.ocrPages': 'OCR (first 5 pages)',
+  'pdf.extractText': 'Extract text',
 }
 
 export type OfficeKey = keyof typeof zh
