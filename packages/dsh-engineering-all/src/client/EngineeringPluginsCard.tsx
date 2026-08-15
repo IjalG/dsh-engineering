@@ -1,14 +1,11 @@
 /**
  * Engineering family group card — the unified dsh-engineering management
  * panel inside 设置 > 插件 > 插件配置 (registered as a `settings.plugin.item`
- * group card, right of the dsh-web-ui group).
+ * group card).
  *
- * Members render as expandable entries. Auto-detection rule: a member whose
- * registration is already owned by the dsh-web-ui family (detected at runtime
- * through the slot registry — the web-ui-plugins group card existing) is
- * HIDDEN here, so the two families never show duplicate management surfaces
- * for the same plugin. The first member, dsh-beyond-workscope, is exactly
- * such an external member when dsh-web-ui is installed.
+ * Members render as expandable entries. All members belong to this family:
+ * dsh-beyond-workscope (full provider — the dsh-web-ui copy is deleted),
+ * dsh-nas, dsh-office, dsh-mail.
  *
  * Failure policy: fetch problems degrade to a quiet "no data" state — this
  * panel must never take the settings page down.
@@ -43,8 +40,6 @@ interface AuditEntry {
   readonly detail: string
 }
 
-/** The dsh-web-ui group card id (auto-detection marker). */
-const WEB_UI_GROUP_ID = 'web-ui-plugins'
 /** Beyond-workscope API prefix (read-only fetches). */
 const BEYOND_API = '/api/dsh-beyond-workscope'
 /** dsh-nas API prefix. */
@@ -72,25 +67,8 @@ export function EngineeringPluginsCard(props: {
 }) {
   const { slots, t } = props
   const [expanded, setExpanded] = useState(false)
-  const [webUIFamilyPresent, setWebUIFamilyPresent] = useState(false)
   const [beyond, setBeyond] = useState<BeyondState>({ running: false, workspaces: [], audit: [] })
   const [nas, setNas] = useState<NasState>({ running: false, enabled: true, busy: false })
-
-  // Auto-detection: the dsh-web-ui group card existing means the dsh-web-ui
-  // family owns the family-member registrations — hide ours for the members
-  // it manages (runtime probe, so install order never matters).
-  useEffect(() => {
-    const detect = (): void => {
-      try {
-        setWebUIFamilyPresent(slots.entries('settings.plugin.item').some(entry => entry.options.id === WEB_UI_GROUP_ID))
-      } catch {
-        setWebUIFamilyPresent(false)
-      }
-    }
-    detect()
-    const unsubscribe = slots.subscribe('settings.plugin.item', detect)
-    return () => { unsubscribe() }
-  }, [slots])
 
   // Read-only overview of the beyond-workscope member (only while visible).
   const refresh = useCallback(async (): Promise<void> => {
@@ -110,11 +88,11 @@ export function EngineeringPluginsCard(props: {
   }, [])
 
   useEffect(() => {
-    if (!expanded || webUIFamilyPresent) return
+    if (!expanded) return
     void refresh()
     const timer = setInterval(() => { void refresh() }, POLL_MS)
     return () => clearInterval(timer)
-  }, [expanded, webUIFamilyPresent, refresh])
+  }, [expanded, refresh])
 
   // dsh-nas member state: API reachability + master switch (polled).
   const refreshNas = useCallback(async (): Promise<void> => {
@@ -151,9 +129,6 @@ export function EngineeringPluginsCard(props: {
     await refreshNas()
   }
 
-  // Hidden when the dsh-web-ui family manages beyond-workscope.
-  const beyondHidden = webUIFamilyPresent
-
   return (
     <div className={css.card}>
       <button type="button" className={css.header} onClick={() => setExpanded(open => !open)}>
@@ -163,35 +138,31 @@ export function EngineeringPluginsCard(props: {
       <div className={css.description}>{t('description')}</div>
       {expanded && (
         <div className={css.body}>
-          {beyondHidden && <div className={css.hint}>{t('hiddenByWebUi')}</div>}
-          {!beyondHidden && (
-            <div className={css.member}>
-              <div className={css.memberHeader}>
-                <span className={css.memberName}>{t('member.beyond.name')}</span>
-                <span className={css.status} data-running={beyond.running}>
-                  {beyond.running ? t('member.status.running') : t('member.status.missing')}
-                </span>
-              </div>
-              <div className={css.memberDesc}>{t('member.beyond.description')}</div>
-              <div className={css.meta}>
-                <span>{t('member.workspaces')}: {beyond.workspaces.length}</span>
-                {beyond.workspaces.slice(0, 3).map(w => (
-                  <span className={css.metaPath} key={w.id} title={w.path}>{w.title}</span>
-                ))}
-              </div>
-              <div className={css.meta}>
-                <span>{t('member.audit')}:</span>
-                {beyond.audit.length === 0 && <span>{t('member.noData')}</span>}
-                {beyond.audit.map(entry => (
-                  <span className={css.auditLine} key={entry.id}>
-                    {entry.kind} · {entry.detail.slice(0, 40)}
-                  </span>
-                ))}
-              </div>
-              <div className={css.hint}>{t('member.manage.hint')}</div>
+          <div className={css.member}>
+            <div className={css.memberHeader}>
+              <span className={css.memberName}>{t('member.beyond.name')}</span>
+              <span className={css.status} data-running={beyond.running}>
+                {beyond.running ? t('member.status.running') : t('member.status.missing')}
+              </span>
             </div>
-          )}
-          {beyondHidden && <div className={css.empty}>{t('empty')}</div>}
+            <div className={css.memberDesc}>{t('member.beyond.description')}</div>
+            <div className={css.meta}>
+              <span>{t('member.workspaces')}: {beyond.workspaces.length}</span>
+              {beyond.workspaces.slice(0, 3).map(w => (
+                <span className={css.metaPath} key={w.id} title={w.path}>{w.title}</span>
+              ))}
+            </div>
+            <div className={css.meta}>
+              <span>{t('member.audit')}:</span>
+              {beyond.audit.length === 0 && <span>{t('member.noData')}</span>}
+              {beyond.audit.map(entry => (
+                <span className={css.auditLine} key={entry.id}>
+                  {entry.kind} · {entry.detail.slice(0, 40)}
+                </span>
+              ))}
+            </div>
+            <div className={css.hint}>{t('member.manage.hint')}</div>
+          </div>
           <div className={css.member}>
             <div className={css.memberHeader}>
               <span className={css.memberName}>{t('member.nas.name')}</span>

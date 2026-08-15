@@ -1,7 +1,7 @@
 # dsh-beyond-workscope bundle patch: inserts the dual-face plugin row into the
 # web profile roster. Applied as a profile bundle layer (the `dsh.bundle.patch`
 # manifest field) over dsh-base; activate with
-# `dsh plugin --profile <name> add link:~/code/dsh-web-ui/packages/dsh-beyond-workscope`.
+# 安装：`dsh plugin --profile <name> add link:~/桌面/codes/dsh-web-ui/dsh-engineering/packages/dsh-beyond-workscope-eng`.
 #
 # The row is a bare plugin by package name: the node half (exports ".") runs
 # in the host process (perception, grant registry, agent tools, /api routes),

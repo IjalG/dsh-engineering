@@ -1,9 +1,9 @@
 /**
  * dsh-engineering family aggregate, browser half. Registers the
  * `engineering-plugins` dictionaries and one group card into the plugin
- * configuration section (设置 > 插件 > 插件配置), right of the dsh-web-ui
- * group. The group card renders the family members with the auto-detection
- * rule (a member already managed by dsh-web-ui is hidden here).
+ * configuration section (设置 > 插件 > 插件配置). The group card renders
+ * the family members — dsh-beyond-workscope (full provider), dsh-nas,
+ * dsh-office, dsh-mail.
  *
  * The panel only ever READS member state (beyond-workscope overview via its
  * own API); registration and configuration stay with the owning family, so
