@@ -1,6 +1,6 @@
 {
   "name": "@linxin666/dsh-engineering-all",
-  "description": "dsh-engineering 聚合包：工程能力插件全家桶 + 统一管理面板（设置 > 插件 > 插件配置）。首个成员：dsh-beyond-workscope（外部成员，注册与配置仍走 dsh-web-ui 渠道，本包只做概览与入口，避免重复注册冲突）。",
+  "description": "dsh-engineering 聚合包：工程能力插件全家桶 + 统一管理面板（设置 > 插件 > 插件配置）。成员：dsh-beyond-workscope（完整提供者，dsh-web-ui 侧副本已删除）、dsh-nas、dsh-office、dsh-mail。",
   "version": "0.1.1",
   "private": true,
   "type": "module",
@@ -50,8 +50,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tsdown": "0.22.2",
-    "typescript": "~5.7.2",
-    "@linxin666/dsh-client-ui-web-ui-settings": "link:../../../dsh-web-ui/packages/dsh-web-ui-settings"
+    "typescript": "~5.7.2"
   },
   "license": "BSD-3-Clause"
 }

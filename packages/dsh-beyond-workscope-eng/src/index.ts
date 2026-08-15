@@ -136,12 +136,13 @@ export const BEYOND_GUIDANCE = [
  * @param config - resolved plugin config (schema defaults applied by the loader).
  */
 /**
- * dsh-engineering copy of beyond-workscope. Auto-switching: when the
- * dsh-web-ui family already provides the plugin (its loader row `beyond-
- * workscope` exists in the composition), this copy stands down — no tools,
- * routes, or prompt section — so the two families never double-register.
- * The browser half detects the host's provider marker route and does the
- * same. When dsh-web-ui is absent, this copy serves as the full provider.
+ * dsh-beyond-workscope, the full provider (moved into the dsh-engineering
+ * family; the dsh-web-ui copy is deleted). Defensive auto-switch kept: if a
+ * legacy profile still loads the dsh-web-ui loader row `beyond-workscope`,
+ * this copy stands down — no tools, routes, or prompt section — so the two
+ * never double-register. The browser half detects the host's provider
+ * marker route and does the same. Without that legacy row, this copy is
+ * the full provider.
  */
 export function apply(ctx: Context, config?: Config): void {
   // Auto-switch: stand down when the dsh-web-ui family owns the plugin.

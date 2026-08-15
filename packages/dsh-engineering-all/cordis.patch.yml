@@ -1,11 +1,10 @@
 # dsh-engineering-all bundle patch: engineering family plugin rows.
-# 注意：beyond-workscope 是外部成员（由 dsh-web-ui-all 注册），此处不 insert 其行，
-# 避免与 dsh-web-ui 全家桶重复注册冲突（duplicate loader entry id）。
 - insert:
     - id: engineering-all
       name: '@linxin666/dsh-engineering-all'
 
-# beyond-workscope 工程副本（自动切换：dsh-web-ui 版在场时本行 apply 内 no-op）
+# dsh-beyond-workscope 完整提供者（已完全移入本家族，dsh-web-ui 侧副本已删除；
+# 代码保留防御性自动切换：若旧 profile 仍加载 dsh-web-ui 版则本行 apply 内 no-op）
 - insert:
     - id: beyond-workscope-eng
       name: '@linxin666/dsh-beyond-workscope-eng'

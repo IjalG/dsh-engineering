@@ -1,8 +1,12 @@
 # 聚合包清单：patchFrom 的包其 cordis.patch.yml insert 行会被汇总进本包 patch
 # deps 的包进 package.json dependencies（workspace:* 或 link:）
-# 成员规则：本家族插件从这里汇总；外部成员（如 beyond-workscope）只进 deps 不进 patchFrom
+# 成员规则：本家族插件从这里汇总；beyond-workscope 已完全移入本家族
+# （dsh-beyond-workscope-eng 是唯一提供者，dsh-web-ui 侧副本已删除）
 patchFrom:
   - ./dsh-nas
+  - ./dsh-beyond-workscope-eng
 deps:
-  - ../../dsh-web-ui/packages/dsh-beyond-workscope
+  - ./dsh-beyond-workscope-eng
   - ./dsh-nas
+  - ./dsh-office
+  - ./dsh-mail
